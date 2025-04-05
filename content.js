@@ -1,162 +1,147 @@
-async function fetchCompanyData(companyName) {
-  let attempts = 0;
-  // Wait (retry) until agencyDataMap is populated.
-  while (Object.keys(agencyDataMap).length === 0 && attempts < 5) {
-    console.log("Waiting for agency data to load...");
-    await new Promise(resolve => setTimeout(resolve, 500));
-    attempts++;
+let lastCheckedUrl = '';
+let lastCheckedCompanyName = '';
+
+// Main function to check the page for company names
+function checkForCompanyNames() {
+  // Avoid rechecking the same page
+  if (window.location.href === lastCheckedUrl) return;
+  lastCheckedUrl = window.location.href;
+  
+  // Check different LinkedIn page types
+  if (window.location.href.includes('/company/')) {
+    checkCompanyPage();
+  } else if (window.location.href.includes('/jobs/')) {
+    checkJobPage();
+  } else if (window.location.href.includes('/search/results/')) {
+    checkSearchResults();
   }
-  console.log("Looking up data for:", companyName, "->", agencyDataMap[companyName]);
-  return agencyDataMap[companyName] || null;
 }
 
-// Function to display the fetched company data near the reference element.
-function displayCompanyData(companyName, data, referenceElement) {
-  // Create an overlay container.
-  const container = document.createElement("div");
-  container.style.position = "absolute";
-  container.style.backgroundColor = "#fff// Function to look up agency data for a given company name.
-async function fetchCompanyData(companyName) {
-  let attempts = 0;
-  // Wait (retry) until agencyDataMap is populated.
-  while (Object.keys(agencyDataMap).length === 0 && attempts < 5) {
-    console.log("Waiting for agency data to load...");
-    await new Promise(resolve => setTimeout(resolve, 500));
-    attempts++;
+// Check company pages
+function checkCompanyPage() {
+  const companyNameElement = document.querySelector('.org-top-card-summary__title');
+  if (companyNameElement) {
+    const companyName = companyNameElement.textContent.trim();
+    if (companyName !== lastCheckedCompanyName) {
+      lastCheckedCompanyName = companyName;
+      queryCompanyInfo(companyName, companyNameElement);
+    }
   }
-  console.log("Looking up data for:", companyName, "->", agencyDataMap[companyName]);
-  return agencyDataMap[companyName] || null;
 }
 
-// Function to display the fetched company data near the reference element.
-function displayCompanyData(companyName, data, referenceElement) {
-  // Create an overlay container.
-  const container = document.createElement("div");
-  container.style.position = "absolute";
-  container.style.backgroundColor = "#fff";
-  container.style.border = "1px solid #ccc";
-  container.style.padding = "10px";
-  container.style.zIndex = 9999;
-  container.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
-  
-  container.innerHTML = `<strong>${companyName}</strong><br>
-    Rating: ${data.rating}<br>
-    Comments: ${data.comments}`;
-  
-  // Position the container near the detected element.
-  const rect = referenceElement.getBoundingClientRect();
-  container.style.top = `${rect.top + window.scrollY}px`;
-  container.style.left = `${rect.right + 10 + window.scrollX}px`;
-  
-  document.body.appendChild(container);
+// Check job pages
+function checkJobPage() {
+  const companyElements = document.querySelectorAll('.job-details-jobs-unified-top-card__company-name');
+  companyElements.forEach(element => {
+    const companyName = element.textContent.trim();
+    if (companyName && companyName !== lastCheckedCompanyName) {
+      lastCheckedCompanyName = companyName;
+      queryCompanyInfo(companyName, element);
+    }
+  });
 }
 
-// Function to scan an element's text content for agency names.
-async function scanElement(element) {
-  const text = element.textContent;
-  if (!text) return;
-  
-  // Use keys from agencyDataMap if available; otherwise, fallback to default keywords.
-  const keywordsList = Object.keys(agencyDataMap).length > 0 
-    ? Object.keys(agencyDataMap)
-    : ["Recruitment Inc", "Agency XYZ", "Recruitment Agency"];
-  
-  for (let keyword of keywordsList) {
-    if (text.includes(keyword)) {
-      // Prevent duplicate processing.
-      if (!element.dataset.companyDataDisplayed) {
-        const companyData = await fetchCompanyData(keyword);
-        if (companyData) {
-          console.log("Displaying data for:", keyword);
-          displayCompanyData(keyword, companyData, element);
-          element.dataset.companyDataDisplayed = "true";
-        }
+// Check search results
+function checkSearchResults() {
+  const companyElements = document.querySelectorAll('.entity-result__title-text a, .job-card-container__company-name');
+  companyElements.forEach(element => {
+    const companyName = element.textContent.trim();
+    if (companyName) {
+      queryCompanyInfo(companyName, element);
+    }
+  });
+}
+
+// Send company name to background script and display results
+function queryCompanyInfo(companyName, element) {
+  chrome.runtime.sendMessage(
+    { action: 'checkCompany', companyName: companyName },
+    response => {
+      if (response && response.company) {
+        displayCompanyInfo(response.company, element);
       }
     }
-  }
+  );
 }
 
-// Initial scan of the page.
-document.querySelectorAll("body *").forEach(element => {
-  scanElement(element);
-});
-
-// Observe for dynamic content changes (useful for LinkedIn's AJAX-loaded content).
-const observer = new MutationObserver(mutationsList => {
-  for (let mutation of mutationsList) {
-    if (mutation.type === "childList") {
-      mutation.addedNodes.forEach(node => {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          scanElement(node);
-          node.querySelectorAll("*").forEach(child => scanElement(child));
-        }
-      });
-    }
+// Display company information next to the company name
+function displayCompanyInfo(company, element) {
+  // Remove any existing info first
+  const existingInfo = element.parentNode.querySelector('.agency-checker-info');
+  if (existingInfo) {
+    existingInfo.remove();
   }
-});
-
-// Start observing document changes.
-observer.observe(document.body, { childList: true, subtree: true });
-";
-  container.style.border = "1px solid #ccc";
-  container.style.padding = "10px";
-  container.style.zIndex = 9999;
-  container.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
   
-  container.innerHTML = `<strong>${companyName}</strong><br>
-    Rating: ${data.rating}<br>
-    Comments: ${data.comments}`;
+  // Create and style the info element
+  const infoElement = document.createElement('div');
+  infoElement.className = 'agency-checker-info';
+  infoElement.style.cssText = `
+    margin-left: 10px;
+    padding: 5px 10px;
+    background-color: ${getRatingColor(company.rating)};
+    color: white;
+    border-radius: 5px;
+    font-size: 12px;
+    display: inline-block;
+  `;
   
-  // Position the container near the detected element.
-  const rect = referenceElement.getBoundingClientRect();
-  container.style.top = `${rect.top + window.scrollY}px`;
-  container.style.left = `${rect.right + 10 + window.scrollX}px`;
+  // Add company details
+  infoElement.innerHTML = `
+    <strong>Rating:</strong> ${company.rating}/5
+    <span class="agency-tooltip">ℹ️
+      <div class="tooltip-content">
+        <p><strong>${company.name}</strong></p>
+        <p><strong>Rating:</strong> ${company.rating}/5</p>
+        <p><strong>Comments:</strong> ${company.comments}</p>
+      </div>
+    </span>
+  `;
   
-  document.body.appendChild(container);
+  // Add tooltip styles
+  const style = document.createElement('style');
+  style.textContent = `
+    .agency-tooltip { 
+      position: relative;
+      cursor: pointer;
+      margin-left: 5px;
+    }
+    .tooltip-content {
+      display: none;
+      position: absolute;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 10px;
+      width: 250px;
+      z-index: 1000;
+      color: #333;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      border-radius: 4px;
+      left: 20px;
+      top: -10px;
+    }
+    .agency-tooltip:hover .tooltip-content {
+      display: block;
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Insert after the company name
+  element.parentNode.insertBefore(infoElement, element.nextSibling);
 }
 
-// Function to scan an element's text content for agency names.
-async function scanElement(element) {
-  const text = element.textContent;
-  if (!text) return;
-  
-  // Use keys from agencyDataMap if available; otherwise, fallback to default keywords.
-  const keywordsList = Object.keys(agencyDataMap).length > 0 
-    ? Object.keys(agencyDataMap)
-    : ["Recruitment Inc", "Agency XYZ", "Recruitment Agency"];
-  
-  for (let keyword of keywordsList) {
-    if (text.includes(keyword)) {
-      // Prevent duplicate processing.
-      if (!element.dataset.companyDataDisplayed) {
-        const companyData = await fetchCompanyData(keyword);
-        if (companyData) {
-          displayCompanyData(keyword, companyData, element);
-          element.dataset.companyDataDisplayed = "true";
-        }
-      }
-    }
-  }
+// Get color based on company rating
+function getRatingColor(rating) {
+  const numRating = parseFloat(rating);
+  if (numRating >= 4) return '#28a745'; // Green
+  if (numRating >= 3) return '#ffc107'; // Yellow
+  return '#dc3545'; // Red
 }
 
-// Initial scan of the page.
-document.querySelectorAll("body *").forEach(element => {
-  scanElement(element);
-});
+// Check the page immediately and whenever URL changes
+checkForCompanyNames();
+setInterval(checkForCompanyNames, 2000); // Periodic check every 2 seconds
 
-// Observe for dynamic content changes.
-const observer = new MutationObserver(mutationsList => {
-  for (let mutation of mutationsList) {
-    if (mutation.type === "childList") {
-      mutation.addedNodes.forEach(node => {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          scanElement(node);
-          node.querySelectorAll("*").forEach(child => scanElement(child));
-        }
-      });
-    }
-  }
-});
-
-// Start observing document changes.
+// Also check when content is loaded or updated
+document.addEventListener('DOMContentLoaded', checkForCompanyNames);
+const observer = new MutationObserver(checkForCompanyNames);
 observer.observe(document.body, { childList: true, subtree: true });

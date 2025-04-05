@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Recruitment Agency Checker</title>
+  <style>
+    body {
+      width: 300px;
+      font-family: Arial, sans-serif;
+      padding: 10px;
+    }
+    h2 {
+      margin-top: 0;
+    }
+    .stats {
+      margin: 15px 0;
+    }
+    .search {
+      margin-bottom: 15px;
+    }
+    input {
+      width: 100%;
+      padding: 5px;
+      box-sizing: border-box;
+    }
+    .agency-item {
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+    }
+    .rating {
+      font-weight: bold;
+      float: right;
+    }
+  </style>
+</head>
+<body>
+  <h2>Recruitment Agency Checker</h2>
+  
+  <div class="stats">
+    <p>Agencies tracked: <span id="totalAgencies">0</span></p>
+    <p>Last updated: <span id="lastUpdated">Never</span></p>
+  </div>
+  
+  <div class="search">
+    <input type="text" id="searchInput" placeholder="Search for an agency...">
+  </div>
+  
+  <div id="results"></div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
