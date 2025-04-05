@@ -1,26 +1,26 @@
-// Global object to hold the data from Excel: keys are agency names.
+// Global object to hold agency data, keyed by agency name.
 let agencyDataMap = {};
 
-// Function to load and parse the Excel file
+// Function to load and parse the CSV text file.
 async function loadAgencyData() {
-  // Update with your GitHub raw URL for the Excel file
-  const url = "https://github.com/MuhammadMohtashim/Extension/raw/refs/heads/main/data.xlsx"; 
+  // Replace this URL with your GitHub raw file URL.
+  const url = "https://raw.githubusercontent.com/MuhammadMohtashim/Extension/refs/heads/main/data.csv";
   try {
     const response = await fetch(url);
-    const arrayBuffer = await response.arrayBuffer();
-    const data = new Uint8Array(arrayBuffer);
-    const workbook = XLSX.read(data, { type: "array" });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    // Convert sheet to JSON; header row is assumed in row 1.
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+    const textData = await response.text();
+    // Split the file into lines.
+    const lines = textData.split('\n').map(line => line.trim()).filter(line => line.length > 0);
     
-    // Assuming the first row has headers: ["Agency Name", "Agency Rating", "Agency Comments"]
-    for (let i = 1; i < jsonData.length; i++) {
-      const row = jsonData[i];
-      const agencyName = row[0];
-      const agencyRating = row[1];
-      const agencyComments = row[2];
+    // Expecting first line to be headers: "Agency Name,Agency Rating,Agency Comments"
+    const headers = lines[0].split(',');
+    
+    // Process each subsequent line.
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i].split(',');
+      // Trim each field to remove extra spaces.
+      const agencyName = row[0].trim();
+      const agencyRating = row[1] ? row[1].trim() : "N/A";
+      const agencyComments = row[2] ? row[2].trim() : "No comments";
       if (agencyName) {
         agencyDataMap[agencyName] = {
           rating: agencyRating,
@@ -34,5 +34,5 @@ async function loadAgencyData() {
   }
 }
 
-// Load the data as soon as the script runs.
+// Load the agency data when this script is executed.
 loadAgencyData();

@@ -1,5 +1,5 @@
 // List of agency names (keywords) to detect.
-// You can keep this list in sync with your Excel data or make it dynamic.
+// This list can be dynamically generated from agencyDataMap if desired.
 const keywords = ["Recruitment Inc", "Agency XYZ", "Recruitment Agency"];
 
 // Modified fetch function to look up the agency info from our loaded data.
@@ -25,8 +25,8 @@ function displayCompanyData(companyName, data, referenceElement) {
   container.style.boxShadow = "0 2px 6px rgba(0,0,0,0.2)";
   
   container.innerHTML = `<strong>${companyName}</strong><br>
-    Rating: ${data.rating || "N/A"}<br>
-    Comments: ${data.comments || "No comments"}`;
+    Rating: ${data.rating}<br>
+    Comments: ${data.comments}`;
 
   // Position the container near the reference element.
   const rect = referenceElement.getBoundingClientRect();
