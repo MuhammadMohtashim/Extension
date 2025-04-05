@@ -29,7 +29,8 @@ function checkCompanyPage() {
   }
 }
 
-// Update the checkJobPage function in content.js
+// In content.js, update the checkJobPage function
+
 function checkJobPage() {
   // Handle job search view specifically
   if (window.location.href.includes('/jobs/search/')) {
@@ -48,16 +49,47 @@ function checkJobPage() {
       });
     };
     
-    // Watch for changes in the job details panel
-    const jobDetailsObserver = new MutationObserver(checkJobDetailsPanel);
-    
-    // Start observing the job details container
+    // Try to find the job details container
     const jobDetailsContainer = document.querySelector('.jobs-search__job-details');
+    
     if (jobDetailsContainer) {
-      jobDetailsObserver.observe(jobDetailsContainer, { childList: true, subtree: true });
+      try {
+        // Create a new observer - don't reuse old ones as they may be invalid
+        const jobDetailsObserver = new MutationObserver(checkJobDetailsPanel);
+        
+        // Start observing with error handling
+        jobDetailsObserver.observe(jobDetailsContainer, { childList: true, subtree: true });
+        
+        // Store the observer reference in a global variable to disconnect it later if needed
+        window.currentJobObserver = jobDetailsObserver;
+      } catch (error) {
+        console.error("Error setting up job details observer:", error);
+        
+        // Use a fallback method - polling
+        if (!window.jobDetailsPollInterval) {
+          window.jobDetailsPollInterval = setInterval(checkJobDetailsPanel, 1000);
+        }
+      }
+    } else {
+      // If container not found, use polling method
+      if (!window.jobDetailsPolling) {
+        window.jobDetailsPolling = true;
+        
+        // Check for container every 500ms
+        const containerCheckInterval = setInterval(() => {
+          const container = document.querySelector('.jobs-search__job-details');
+          if (container) {
+            clearInterval(containerCheckInterval);
+            checkJobPage(); // Retry with container found
+          }
+        }, 500);
+        
+        // Don't let it run forever
+        setTimeout(() => clearInterval(containerCheckInterval), 10000);
+      }
     }
     
-    // Also check when the page loads
+    // Also check immediately when the function is called
     checkJobDetailsPanel();
   } else {
     // Handle regular job page (direct URL to job)
@@ -71,6 +103,17 @@ function checkJobPage() {
     });
   }
 }
+
+// Add this to your global initialization code to clean up on page changes
+window.addEventListener('beforeunload', () => {
+  // Clean up any observers or intervals
+  if (window.currentJobObserver) {
+    window.currentJobObserver.disconnect();
+  }
+  if (window.jobDetailsPollInterval) {
+    clearInterval(window.jobDetailsPollInterval);
+  }
+});
 
 // Check search results
 function checkSearchResults() {
