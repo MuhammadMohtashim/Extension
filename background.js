@@ -4,7 +4,7 @@ let companyData = [];
 async function fetchCompanyData() {
   try {
     // Replace with your actual GitHub raw CSV URL
-    const response = await fetch('https://raw.githubusercontent.com/MuhammadMohtashim/Extension/refs/heads/main/data.csv');
+    const response = await fetch("https://raw.githubusercontent.com/MuhammadMohtashim/Extension/refs/heads/main/data.csv");
     const csvText = await response.text();
     companyData = parseCSV(csvText);
     
