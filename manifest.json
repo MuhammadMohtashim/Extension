@@ -2,6 +2,7 @@
     "manifest_version": 3,
     "name": "Recruitment Agency Info",
     "version": "1.0",
+    "content_security_policy": {"extension_pages": "default-src 'self'; script-src 'self'; object-src 'none'; trusted-types default;"},
     "description": "Displays ratings and comments for recruitment agencies based on data from an Excel file hosted on GitHub.",
     "permissions": ["activeTab", "scripting"],
     "content_scripts": [
