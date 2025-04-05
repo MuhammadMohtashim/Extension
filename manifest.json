@@ -1,0 +1,19 @@
+{
+    "manifest_version": 3,
+    "name": "Recruitment Agency Info",
+    "version": "1.0",
+    "description": "Displays ratings and comments for recruitment agencies based on data from an Excel file hosted on GitHub.",
+    "permissions": ["activeTab", "scripting"],
+    "content_scripts": [
+      {
+        "matches": ["<all_urls>"],
+        "js": [
+          "xlsx.full.min.js",
+          "dataLoader.js",
+          "content.js"
+        ],
+        "run_at": "document_end"
+      }
+    ]
+  }
+  
