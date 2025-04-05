@@ -29,16 +29,47 @@ function checkCompanyPage() {
   }
 }
 
-// Check job pages
+// Update the checkJobPage function in content.js
 function checkJobPage() {
-  const companyElements = document.querySelectorAll('.job-details-jobs-unified-top-card__company-name');
-  companyElements.forEach(element => {
-    const companyName = element.textContent.trim();
-    if (companyName && companyName !== lastCheckedCompanyName) {
-      lastCheckedCompanyName = companyName;
-      queryCompanyInfo(companyName, element);
+  // Handle job search view specifically
+  if (window.location.href.includes('/jobs/search/')) {
+    // When in the job search view, we need to watch for job selection changes
+    // LinkedIn dynamically loads job details when clicked
+    
+    // Check for the company name in the job details panel
+    const checkJobDetailsPanel = () => {
+      const companyElements = document.querySelectorAll('.jobs-unified-top-card__company-name, .job-details-jobs-unified-top-card__company-name');
+      
+      companyElements.forEach(element => {
+        const companyName = element.textContent.trim();
+        if (companyName) {
+          queryCompanyInfo(companyName, element, true); // The true flag will make it display as a popup
+        }
+      });
+    };
+    
+    // Watch for changes in the job details panel
+    const jobDetailsObserver = new MutationObserver(checkJobDetailsPanel);
+    
+    // Start observing the job details container
+    const jobDetailsContainer = document.querySelector('.jobs-search__job-details');
+    if (jobDetailsContainer) {
+      jobDetailsObserver.observe(jobDetailsContainer, { childList: true, subtree: true });
     }
-  });
+    
+    // Also check when the page loads
+    checkJobDetailsPanel();
+  } else {
+    // Handle regular job page (direct URL to job)
+    const companyElements = document.querySelectorAll('.job-details-jobs-unified-top-card__company-name');
+    companyElements.forEach(element => {
+      const companyName = element.textContent.trim();
+      if (companyName && companyName !== lastCheckedCompanyName) {
+        lastCheckedCompanyName = companyName;
+        queryCompanyInfo(companyName, element, true); // Show as popup
+      }
+    });
+  }
 }
 
 // Check search results
@@ -52,81 +83,113 @@ function checkSearchResults() {
   });
 }
 
-// Send company name to background script and display results
-function queryCompanyInfo(companyName, element) {
+// Update queryCompanyInfo function in content.js
+function queryCompanyInfo(companyName, element, showAsPopup = false) {
   chrome.runtime.sendMessage(
     { action: 'checkCompany', companyName: companyName },
     response => {
       if (response && response.company) {
-        displayCompanyInfo(response.company, element);
+        if (showAsPopup) {
+          displayCompanyInfoPopup(response.company, element);
+        } else {
+          displayCompanyInfo(response.company, element);
+        }
       }
     }
   );
 }
 
-// Display company information next to the company name
-function displayCompanyInfo(company, element) {
-  // Remove any existing info first
-  const existingInfo = element.parentNode.querySelector('.agency-checker-info');
-  if (existingInfo) {
-    existingInfo.remove();
+// Add this function to content.js
+function displayCompanyInfoPopup(company, element) {
+  // Remove any existing popup first
+  const existingPopup = document.querySelector('.agency-checker-popup');
+  if (existingPopup) {
+    existingPopup.remove();
   }
   
-  // Create and style the info element
-  const infoElement = document.createElement('div');
-  infoElement.className = 'agency-checker-info';
-  infoElement.style.cssText = `
-    margin-left: 10px;
-    padding: 5px 10px;
+  // Create popup
+  const popup = document.createElement('div');
+  popup.className = 'agency-checker-popup';
+  popup.style.cssText = `
+    position: fixed;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 20px;
+    z-index: 9999;
+    width: 320px;
+    font-family: Arial, sans-serif;
+  `;
+  
+  // Create header with rating
+  const header = document.createElement('div');
+  header.style.cssText = `
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+  `;
+  
+  // Company name
+  const nameElement = document.createElement('h3');
+  nameElement.textContent = company.name;
+  nameElement.style.margin = '0';
+  
+  // Rating badge
+  const ratingBadge = document.createElement('span');
+  ratingBadge.textContent = `${company.rating}/5`;
+  ratingBadge.style.cssText = `
     background-color: ${getRatingColor(company.rating)};
     color: white;
-    border-radius: 5px;
-    font-size: 12px;
-    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-weight: bold;
   `;
   
-  // Add company details
-  infoElement.innerHTML = `
-    <strong>Rating:</strong> ${company.rating}/5
-    <span class="agency-tooltip">ℹ️
-      <div class="tooltip-content">
-        <p><strong>${company.name}</strong></p>
-        <p><strong>Rating:</strong> ${company.rating}/5</p>
-        <p><strong>Comments:</strong> ${company.comments}</p>
-      </div>
-    </span>
+  header.appendChild(nameElement);
+  header.appendChild(ratingBadge);
+  
+  // Comments section
+  const comments = document.createElement('div');
+  comments.innerHTML = `
+    <strong>Agency Comments:</strong>
+    <p>${company.comments || 'No comments available'}</p>
   `;
   
-  // Add tooltip styles
-  const style = document.createElement('style');
-  style.textContent = `
-    .agency-tooltip { 
-      position: relative;
-      cursor: pointer;
-      margin-left: 5px;
-    }
-    .tooltip-content {
-      display: none;
-      position: absolute;
-      background: white;
-      border: 1px solid #ccc;
-      padding: 10px;
-      width: 250px;
-      z-index: 1000;
-      color: #333;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      border-radius: 4px;
-      left: 20px;
-      top: -10px;
-    }
-    .agency-tooltip:hover .tooltip-content {
-      display: block;
-    }
+  // Close button
+  const closeButton = document.createElement('button');
+  closeButton.textContent = 'Close';
+  closeButton.style.cssText = `
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 15px;
+    float: right;
   `;
-  document.head.appendChild(style);
+  closeButton.onclick = () => popup.remove();
   
-  // Insert after the company name
-  element.parentNode.insertBefore(infoElement, element.nextSibling);
+  // Assemble popup
+  popup.appendChild(header);
+  popup.appendChild(comments);
+  popup.appendChild(closeButton);
+  
+  // Add popup to the page
+  document.body.appendChild(popup);
+  
+  // Auto-dismiss after 10 seconds
+  setTimeout(() => {
+    if (document.body.contains(popup)) {
+      popup.remove();
+    }
+  }, 10000);
 }
 
 // Get color based on company rating
