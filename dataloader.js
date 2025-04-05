@@ -4,7 +4,7 @@ let agencyDataMap = {};
 // Function to load and parse the Excel file
 async function loadAgencyData() {
   // Update with your GitHub raw URL for the Excel file
-  const url = "https://raw.githubusercontent.com/MuhammadMohtashim/Extension/blob/main/data.xlsx"; 
+  const url = "https://github.com/MuhammadMohtashim/Extension/raw/refs/heads/main/data.xlsx"; 
   try {
     const response = await fetch(url);
     const arrayBuffer = await response.arrayBuffer();
