@@ -1,21 +1,19 @@
-// List of agency names (keywords) to detect.
-// This list can be dynamically generated from agencyDataMap if desired.
-const keywords = ["Recruitment Inc", "Agency XYZ", "Recruitment Agency"];
-
-// Modified fetch function to look up the agency info from our loaded data.
+// Function to look up agency data for a given company name.
 async function fetchCompanyData(companyName) {
-  // Wait for the data to load if necessary (simple retry mechanism)
   let attempts = 0;
+  // Wait (retry) until agencyDataMap is populated.
   while (Object.keys(agencyDataMap).length === 0 && attempts < 5) {
+    console.log("Waiting for agency data to load...");
     await new Promise(resolve => setTimeout(resolve, 500));
     attempts++;
   }
+  console.log("Looking up data for:", companyName, "->", agencyDataMap[companyName]);
   return agencyDataMap[companyName] || null;
 }
 
-// Function to display the fetched company data on the page.
+// Function to display the fetched company data near the reference element.
 function displayCompanyData(companyName, data, referenceElement) {
-  // Create a container for the display.
+  // Create an overlay container.
   const container = document.createElement("div");
   container.style.position = "absolute";
   container.style.backgroundColor = "#fff";
@@ -27,28 +25,30 @@ function displayCompanyData(companyName, data, referenceElement) {
   container.innerHTML = `<strong>${companyName}</strong><br>
     Rating: ${data.rating}<br>
     Comments: ${data.comments}`;
-
-  // Position the container near the reference element.
+  
+  // Position the container near the detected element.
   const rect = referenceElement.getBoundingClientRect();
   container.style.top = `${rect.top + window.scrollY}px`;
   container.style.left = `${rect.right + 10 + window.scrollX}px`;
-
-  // Append the container to the document.
+  
   document.body.appendChild(container);
 }
 
-// Function to scan an element's text content for any of the keywords.
+// Function to scan an element's text content for agency names.
 async function scanElement(element) {
   const text = element.textContent;
   if (!text) return;
-  for (let keyword of keywords) {
+  
+  // Use keys from agencyDataMap if available; otherwise, fallback to default keywords.
+  const keywordsList = Object.keys(agencyDataMap).length > 0 ? Object.keys(agencyDataMap) : ["Recruitment Inc", "Agency XYZ", "Recruitment Agency"];
+  
+  for (let keyword of keywordsList) {
     if (text.includes(keyword)) {
-      // Avoid duplicate fetches by checking if this element has already been processed.
+      // Prevent duplicate processing.
       if (!element.dataset.companyDataDisplayed) {
         const companyData = await fetchCompanyData(keyword);
         if (companyData) {
           displayCompanyData(keyword, companyData, element);
-          // Mark that we've processed this element.
           element.dataset.companyDataDisplayed = "true";
         }
       }
@@ -56,12 +56,12 @@ async function scanElement(element) {
   }
 }
 
-// Initial scan of the page for keywords.
+// Initial scan of the page.
 document.querySelectorAll("body *").forEach(element => {
   scanElement(element);
 });
 
-// Use MutationObserver to re-check for new agency names when the DOM changes.
+// Observe for dynamic content changes.
 const observer = new MutationObserver(mutationsList => {
   for (let mutation of mutationsList) {
     if (mutation.type === "childList") {
@@ -75,5 +75,5 @@ const observer = new MutationObserver(mutationsList => {
   }
 });
 
-// Start observing the document body for changes.
+// Start observing document changes.
 observer.observe(document.body, { childList: true, subtree: true });
