@@ -1,21 +1,28 @@
 // Global object to hold agency data, keyed by agency name.
 let agencyDataMap = {};
 
-// Function to load and parse the CSV text file.
+// Set to true to load local data.txt packaged with your extension,
+// or false to load the remote CSV file from GitHub.
+const useLocalData = false;
+
 async function loadAgencyData() {
-  // Replace with your GitHub raw file URL.
-  const url = "https://raw.githubusercontent.com/MuhammadMohtashim/Extension/refs/heads/main/data.csv";
-  console.log("Fetching agency data from URL:", url);
+  // Choose the URL based on useLocalData.
+  let dataUrl;
+  if (useLocalData) {
+    // Generates a URL like: chrome-extension://<extension-id>/data.txt
+    dataUrl = chrome.runtime.getURL('data.txt');
+  } else {
+    // Replace with your GitHub raw file URL.
+    dataUrl = "https://raw.githubusercontent.com/MuhammadMohtashim/Extension/refs/heads/main/data.csv";
+  }
+  console.log("Fetching agency data from URL:", dataUrl);
   try {
-    const response = await fetch(url);
+    const response = await fetch(dataUrl);
     const textData = await response.text();
-    // Split file into lines and trim whitespace.
+    // Split file into lines and remove empty lines.
     const lines = textData.split('\n').map(line => line.trim()).filter(line => line.length > 0);
     
-    // First line is assumed to be headers: "Agency Name,Agency Rating,Agency Comments"
-    const headers = lines[0].split(',');
-    
-    // Process each subsequent line.
+    // Assume first line contains headers: "Agency Name,Agency Rating,Agency Comments"
     for (let i = 1; i < lines.length; i++) {
       const row = lines[i].split(',');
       const agencyName = row[0].trim();
