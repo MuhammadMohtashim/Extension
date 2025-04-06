@@ -251,3 +251,51 @@ setInterval(checkForCompanyNames, 2000); // Periodic check every 2 seconds
 document.addEventListener('DOMContentLoaded', checkForCompanyNames);
 const observer = new MutationObserver(checkForCompanyNames);
 observer.observe(document.body, { childList: true, subtree: true });
+
+// Add this to your main content.js initialization
+
+// Global error handler
+window.addEventListener('error', (event) => {
+  console.error('Extension error caught:', event.error);
+  
+  // If it's a context invalidation error, attempt recovery
+  if (event.error && event.error.message && 
+      event.error.message.includes('Extension context invalidated')) {
+    
+    // Clean up any existing observers/intervals
+    cleanupExtensionResources();
+    
+    // Reinitialize after a short delay
+    setTimeout(() => {
+      console.log('Attempting to reinitialize extension...');
+      initializeExtension();
+    }, 1000);
+  }
+});
+
+// Cleanup function
+function cleanupExtensionResources() {
+  if (window.currentJobObserver) {
+    try {
+      window.currentJobObserver.disconnect();
+    } catch (e) {
+      console.log('Error disconnecting observer:', e);
+    }
+    window.currentJobObserver = null;
+  }
+  
+  if (window.jobDetailsPollInterval) {
+    clearInterval(window.jobDetailsPollInterval);
+    window.jobDetailsPollInterval = null;
+  }
+}
+
+// Initialize function - wrap your main code in this
+function initializeExtension() {
+  // Your main initialization code here
+  // This might include setting up event listeners, observers, etc.
+  checkForCompanyNames();
+}
+
+// Start the extension
+initializeExtension();
