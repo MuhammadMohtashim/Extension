@@ -1,0 +1,35 @@
+name: Sync Firebase Data to CSV
+
+on:
+  schedule:
+    # Run twice a day
+    - cron: '0 */12 * * *'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  sync-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: npm install firebase-admin
+
+      - name: Sync data
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: node .github/scripts/sync-data.js
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          git add agencies.csv
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update agencies data [skip ci]"
+          git push
