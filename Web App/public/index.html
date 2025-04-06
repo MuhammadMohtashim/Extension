@@ -1,89 +1,610 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Welcome to Firebase Hosting</title>
-
-    <!-- update the version number as needed -->
-    <script defer src="/__/firebase/11.6.0/firebase-app-compat.js"></script>
-    <!-- include only the Firebase features as you need -->
-    <script defer src="/__/firebase/11.6.0/firebase-auth-compat.js"></script>
-    <script defer src="/__/firebase/11.6.0/firebase-database-compat.js"></script>
-    <script defer src="/__/firebase/11.6.0/firebase-firestore-compat.js"></script>
-    <script defer src="/__/firebase/11.6.0/firebase-functions-compat.js"></script>
-    <script defer src="/__/firebase/11.6.0/firebase-messaging-compat.js"></script>
-    <script defer src="/__/firebase/11.6.0/firebase-storage-compat.js"></script>
-    <script defer src="/__/firebase/11.6.0/firebase-analytics-compat.js"></script>
-    <script defer src="/__/firebase/11.6.0/firebase-remote-config-compat.js"></script>
-    <script defer src="/__/firebase/11.6.0/firebase-performance-compat.js"></script>
-    <!-- 
-      initialize the SDK after all desired features are loaded, set useEmulator to false
-      to avoid connecting the SDK to running emulators.
-    -->
-    <script defer src="/__/firebase/init.js?useEmulator=true"></script>
-
-    <style media="screen">
-      body { background: #ECEFF1; color: rgba(0,0,0,0.87); font-family: Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
-      #message { background: white; max-width: 360px; margin: 100px auto 16px; padding: 32px 24px; border-radius: 3px; }
-      #message h2 { color: #ffa100; font-weight: bold; font-size: 16px; margin: 0 0 8px; }
-      #message h1 { font-size: 22px; font-weight: 300; color: rgba(0,0,0,0.6); margin: 0 0 16px;}
-      #message p { line-height: 140%; margin: 16px 0 24px; font-size: 14px; }
-      #message a { display: block; text-align: center; background: #039be5; text-transform: uppercase; text-decoration: none; color: white; padding: 16px; border-radius: 4px; }
-      #message, #message a { box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); }
-      #load { color: rgba(0,0,0,0.4); text-align: center; font-size: 13px; }
-      @media (max-width: 600px) {
-        body, #message { margin-top: 0; background: white; box-shadow: none; }
-        body { border-top: 16px solid #ffa100; }
-      }
-    </style>
-  </head>
-  <body>
-    <div id="message">
-      <h2>Welcome</h2>
-      <h1>Firebase Hosting Setup Complete</h1>
-      <p>You're seeing this because you've successfully setup Firebase Hosting. Now it's time to go build something extraordinary!</p>
-      <a target="_blank" href="https://firebase.google.com/docs/hosting/">Open Hosting Documentation</a>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agency Rating Collaborator</title>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .comment-card {
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .like-button {
+      cursor: pointer;
+      color: #6c757d;
+    }
+    .like-button.liked {
+      color: #0d6efd;
+    }
+    .star-rating {
+      display: inline-block;
+    }
+    .star {
+      color: #ddd;
+      cursor: pointer;
+      font-size: 24px;
+    }
+    .star.filled {
+      color: #ffc107;
+    }
+    .agency-list-item {
+      cursor: pointer;
+      padding: 8px;
+      margin: 4px 0;
+      border-radius: 4px;
+    }
+    .agency-list-item:hover {
+      background-color: #f8f9fa;
+    }
+    .loading {
+      text-align: center;
+      padding: 20px;
+    }
+    .error-message {
+      color: #dc3545;
+      margin-top: 10px;
+    }
+    .success-message {
+      color: #198754;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container mt-4">
+    <div class="row">
+      <div class="col-12">
+        <h1>Agency Rating Collaborator</h1>
+        <p class="text-muted">Collaborate on agency ratings and reviews</p>
+        <div id="status-message"></div>
+      </div>
     </div>
-    <p id="load">Firebase SDK Loading&hellip;</p>
 
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        const loadEl = document.querySelector('#load');
-        // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
-        // // The Firebase SDK is initialized and available here!
-        //
-        // firebase.auth().onAuthStateChanged(user => { });
-        // firebase.database().ref('/path/to/ref').on('value', snapshot => { });
-        // firebase.firestore().doc('/foo/bar').get().then(() => { });
-        // firebase.functions().httpsCallable('yourFunction')().then(() => { });
-        // firebase.messaging().requestPermission().then(() => { });
-        // firebase.storage().ref('/path/to/ref').getDownloadURL().then(() => { });
-        // firebase.analytics(); // call to activate
-        // firebase.analytics().logEvent('tutorial_completed');
-        // firebase.performance(); // call to activate
-        //
-        // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+    <div class="row" id="main-content">
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-header">
+            <h5>Agencies</h5>
+          </div>
+          <div class="card-body">
+            <div class="input-group mb-3">
+              <input type="text" id="agency-search" class="form-control" placeholder="Search agencies...">
+            </div>
+            <div id="agency-list" class="list-group">
+              <div class="loading">Loading agencies...</div>
+            </div>
+            <button id="add-agency-button" class="btn btn-primary mt-3">Add New Agency</button>
+          </div>
+        </div>
+      </div>
 
-        try {
-          let app = firebase.app();
-          let features = [
-            'auth', 
-            'database', 
-            'firestore',
-            'functions',
-            'messaging', 
-            'storage', 
-            'analytics', 
-            'remoteConfig',
-            'performance',
-          ].filter(feature => typeof app[feature] === 'function');
-          loadEl.textContent = `Firebase SDK loaded with ${features.join(', ')}`;
-        } catch (e) {
-          console.error(e);
-          loadEl.textContent = 'Error loading the Firebase SDK, check the console.';
+      <div class="col-md-8">
+        <div id="agency-details" class="card" style="display: none;">
+          <div class="card-header">
+            <h5 id="agency-name">Agency Name</h5>
+            <div id="agency-rating" class="star-rating"></div>
+            <small id="rating-count">(0 ratings)</small>
+          </div>
+          <div class="card-body">
+            <h6>Add Your Rating</h6>
+            <div id="user-rating" class="star-rating mb-3">
+              <span class="star" data-value="1">★</span>
+              <span class="star" data-value="2">★</span>
+              <span class="star" data-value="3">★</span>
+              <span class="star" data-value="4">★</span>
+              <span class="star" data-value="5">★</span>
+            </div>
+            
+            <div class="form-group mb-3">
+              <label for="comment-input">Your Comment</label>
+              <textarea id="comment-input" class="form-control" rows="3"></textarea>
+            </div>
+            
+            <div class="form-group mb-3">
+              <label for="nickname-input">Your Name/Nickname (optional)</label>
+              <input type="text" id="nickname-input" class="form-control" placeholder="Anonymous">
+            </div>
+            
+            <button id="submit-rating" class="btn btn-primary mb-4">Submit Rating</button>
+            
+            <h6>Top Comments</h6>
+            <div id="comments-container"></div>
+          </div>
+        </div>
+
+        <div id="new-agency-form" class="card" style="display: none;">
+          <div class="card-header">
+            <h5>Add New Agency</h5>
+          </div>
+          <div class="card-body">
+            <div class="form-group mb-3">
+              <label for="new-agency-name">Agency Name</label>
+              <input type="text" id="new-agency-name" class="form-control">
+            </div>
+            
+            <h6>Your Rating</h6>
+            <div id="new-agency-rating" class="star-rating mb-3">
+              <span class="star" data-value="1">★</span>
+              <span class="star" data-value="2">★</span>
+              <span class="star" data-value="3">★</span>
+              <span class="star" data-value="4">★</span>
+              <span class="star" data-value="5">★</span>
+            </div>
+            
+            <div class="form-group mb-3">
+              <label for="new-agency-comment">Your Comment</label>
+              <textarea id="new-agency-comment" class="form-control" rows="3"></textarea>
+            </div>
+            
+            <div class="form-group mb-3">
+              <label for="new-agency-nickname">Your Name/Nickname (optional)</label>
+              <input type="text" id="new-agency-nickname" class="form-control" placeholder="Anonymous">
+            </div>
+            
+            <button id="submit-new-agency" class="btn btn-primary">Add Agency</button>
+            <button id="cancel-new-agency" class="btn btn-outline-secondary">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDg0ACWUvUb3S6xwEdfjGKgTQmjEsulQMs",
+      authDomain: "recruiter-search-c7515.firebaseapp.com",
+      projectId: "recruiter-search-c7515",
+      storageBucket: "recruiter-search-c7515.firebasestorage.app",
+      messagingSenderId: "342601714550",
+      appId: "1:342601714550:web:699bd13e200851136a4857",
+      measurementId: "G-LPJ6ZNG23T"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    
+    // DOM Elements
+    const statusMessage = document.getElementById('status-message');
+    const agencySearch = document.getElementById('agency-search');
+    const agencyList = document.getElementById('agency-list');
+    const agencyDetails = document.getElementById('agency-details');
+    const agencyNameElement = document.getElementById('agency-name');
+    const agencyRatingElement = document.getElementById('agency-rating');
+    const ratingCountElement = document.getElementById('rating-count');
+    const userRating = document.getElementById('user-rating');
+    const commentInput = document.getElementById('comment-input');
+    const nicknameInput = document.getElementById('nickname-input');
+    const submitRating = document.getElementById('submit-rating');
+    const commentsContainer = document.getElementById('comments-container');
+    const addAgencyButton = document.getElementById('add-agency-button');
+    const newAgencyForm = document.getElementById('new-agency-form');
+    const newAgencyName = document.getElementById('new-agency-name');
+    const newAgencyRating = document.getElementById('new-agency-rating');
+    const newAgencyComment = document.getElementById('new-agency-comment');
+    const newAgencyNickname = document.getElementById('new-agency-nickname');
+    const submitNewAgency = document.getElementById('submit-new-agency');
+    const cancelNewAgency = document.getElementById('cancel-new-agency');
+    
+    // Global variables
+    let currentAgency = null;
+    let selectedRating = 0;
+    let newAgencySelectedRating = 0;
+    
+    // Helper functions for UI messages
+    function showError(message) {
+      statusMessage.innerHTML = `<div class="alert alert-danger">${message}</div>`;
+      setTimeout(() => {
+        statusMessage.innerHTML = '';
+      }, 5000);
+    }
+    
+    function showSuccess(message) {
+      statusMessage.innerHTML = `<div class="alert alert-success">${message}</div>`;
+      setTimeout(() => {
+        statusMessage.innerHTML = '';
+      }, 5000);
+    }
+    
+    // Generate a unique client ID for this browser session
+    const clientId = localStorage.getItem('clientId') || 
+      Date.now().toString(36) + Math.random().toString(36).substr(2);
+    localStorage.setItem('clientId', clientId);
+    
+    // Agency List Functions
+    function loadAgencies() {
+      agencyList.innerHTML = '<div class="loading">Loading agencies...</div>';
+      
+      db.collection('agencies').orderBy('name').get().then(snapshot => {
+        agencyList.innerHTML = '';
+        
+        if (snapshot.empty) {
+          agencyList.innerHTML = '<div class="p-3">No agencies found. Add the first one!</div>';
+          return;
+        }
+        
+        snapshot.docs.forEach(doc => {
+          const agency = doc.data();
+          const div = document.createElement('div');
+          div.className = 'agency-list-item';
+          div.textContent = `${agency.name} (${agency.averageRating ? agency.averageRating.toFixed(1) : '0.0'})`;
+          div.dataset.id = doc.id;
+          div.addEventListener('click', () => loadAgencyDetails(doc.id));
+          agencyList.appendChild(div);
+        });
+      }).catch(error => {
+        console.error("Error loading agencies:", error);
+        agencyList.innerHTML = '<div class="p-3 text-danger">Error loading agencies. Please refresh the page.</div>';
+        showError("Failed to load agencies. Please check your connection and try again.");
+      });
+    }
+    
+    agencySearch.addEventListener('input', () => {
+      const searchTerm = agencySearch.value.toLowerCase();
+      const items = agencyList.querySelectorAll('.agency-list-item');
+      
+      items.forEach(item => {
+        if (item.textContent.toLowerCase().includes(searchTerm)) {
+          item.style.display = 'block';
+        } else {
+          item.style.display = 'none';
         }
       });
-    </script>
-  </body>
+    });
+    
+    // Agency Details Functions
+    function loadAgencyDetails(agencyId) {
+      newAgencyForm.style.display = 'none';
+      
+      db.collection('agencies').doc(agencyId).get().then(doc => {
+        if (doc.exists) {
+          currentAgency = { id: doc.id, ...doc.data() };
+          agencyNameElement.textContent = currentAgency.name;
+          
+          // Display average rating with stars
+          agencyRatingElement.innerHTML = '';
+          for (let i = 1; i <= 5; i++) {
+            const star = document.createElement('span');
+            star.className = 'star' + (i <= Math.round(currentAgency.averageRating || 0) ? ' filled' : '');
+            star.textContent = '★';
+            agencyRatingElement.appendChild(star);
+          }
+          
+          ratingCountElement.textContent = `(${currentAgency.ratingCount || 0} ratings)`;
+          
+          // Reset user rating UI
+          selectedRating = 0;
+          const stars = userRating.querySelectorAll('.star');
+          stars.forEach(star => star.classList.remove('filled'));
+          commentInput.value = '';
+          nicknameInput.value = '';
+          
+          // Load comments
+          loadComments(agencyId);
+          
+          agencyDetails.style.display = 'block';
+        } else {
+          console.error("Agency not found");
+          showError("Agency not found. Please try again.");
+        }
+      }).catch(error => {
+        console.error("Error loading agency details:", error);
+        showError("Error loading agency details. Please try again.");
+      });
+    }
+    
+    function loadComments(agencyId) {
+      commentsContainer.innerHTML = '<div class="loading">Loading comments...</div>';
+      
+      db.collection('agencies').doc(agencyId).collection('comments')
+        .orderBy('likes', 'desc')
+        .limit(5)
+        .get().then(snapshot => {
+          commentsContainer.innerHTML = '';
+          
+          if (snapshot.empty) {
+            commentsContainer.innerHTML = '<p>No comments yet. Be the first to comment!</p>';
+            return;
+          }
+          
+          snapshot.docs.forEach(doc => {
+            const comment = doc.data();
+            const div = document.createElement('div');
+            div.className = 'comment-card';
+            
+            // Display rating with stars
+            let starsHtml = '';
+            for (let i = 1; i <= 5; i++) {
+              starsHtml += `<span class="star${i <= comment.rating ? ' filled' : ''}" style="cursor: default;">★</span>`;
+            }
+            
+            // Check if this client has liked the comment
+            const isLiked = comment.likedBy && comment.likedBy.includes(clientId);
+            
+            div.innerHTML = `
+              <div class="d-flex justify-content-between">
+                <div>
+                  <div class="star-rating">${starsHtml}</div>
+                  <small>${comment.nickname || 'Anonymous'}</small>
+                </div>
+                <div>
+                  <span class="like-button${isLiked ? ' liked' : ''}" data-id="${doc.id}">
+                    👍 ${comment.likes || 0}
+                  </span>
+                </div>
+              </div>
+              <p class="mt-2">${comment.text}</p>
+            `;
+            
+            // Add event listener to like button
+            const likeButton = div.querySelector('.like-button');
+            likeButton.addEventListener('click', () => likeComment(agencyId, doc.id));
+            
+            commentsContainer.appendChild(div);
+          });
+        }).catch(error => {
+          console.error("Error loading comments:", error);
+          commentsContainer.innerHTML = '<p class="text-danger">Error loading comments. Please try again.</p>';
+        });
+    }
+    
+    // Rating functions
+    userRating.querySelectorAll('.star').forEach(star => {
+      star.addEventListener('mouseover', () => {
+        const value = parseInt(star.dataset.value);
+        userRating.querySelectorAll('.star').forEach(s => {
+          if (parseInt(s.dataset.value) <= value) {
+            s.classList.add('filled');
+          } else {
+            s.classList.remove('filled');
+          }
+        });
+      });
+      
+      star.addEventListener('mouseout', () => {
+        userRating.querySelectorAll('.star').forEach(s => {
+          if (parseInt(s.dataset.value) <= selectedRating) {
+            s.classList.add('filled');
+          } else {
+            s.classList.remove('filled');
+          }
+        });
+      });
+      
+      star.addEventListener('click', () => {
+        selectedRating = parseInt(star.dataset.value);
+      });
+    });
+    
+    newAgencyRating.querySelectorAll('.star').forEach(star => {
+      star.addEventListener('mouseover', () => {
+        const value = parseInt(star.dataset.value);
+        newAgencyRating.querySelectorAll('.star').forEach(s => {
+          if (parseInt(s.dataset.value) <= value) {
+            s.classList.add('filled');
+          } else {
+            s.classList.remove('filled');
+          }
+        });
+      });
+      
+      star.addEventListener('mouseout', () => {
+        newAgencyRating.querySelectorAll('.star').forEach(s => {
+          if (parseInt(s.dataset.value) <= newAgencySelectedRating) {
+            s.classList.add('filled');
+          } else {
+            s.classList.remove('filled');
+          }
+        });
+      });
+      
+      star.addEventListener('click', () => {
+        newAgencySelectedRating = parseInt(star.dataset.value);
+      });
+    });
+    
+    submitRating.addEventListener('click', () => {
+      if (!selectedRating) {
+        showError('Please select a rating.');
+        return;
+      }
+      
+      if (!commentInput.value.trim()) {
+        showError('Please enter a comment.');
+        return;
+      }
+      
+      const comment = {
+        rating: selectedRating,
+        text: commentInput.value.trim(),
+        nickname: nicknameInput.value.trim() || 'Anonymous',
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        likes: 0,
+        likedBy: []
+      };
+      
+      // Add the comment
+      db.collection('agencies').doc(currentAgency.id).collection('comments').add(comment)
+        .then(() => {
+          // Update agency rating
+          const agencyRef = db.collection('agencies').doc(currentAgency.id);
+          return db.runTransaction(transaction => {
+            return transaction.get(agencyRef).then(agencyDoc => {
+              const agency = agencyDoc.data();
+              const totalRating = (agency.averageRating || 0) * (agency.ratingCount || 0) + selectedRating;
+              const newRatingCount = (agency.ratingCount || 0) + 1;
+              const newAverage = totalRating / newRatingCount;
+              
+              transaction.update(agencyRef, {
+                averageRating: newAverage,
+                ratingCount: newRatingCount
+              });
+            });
+          });
+        })
+        .then(() => {
+          // Reset form and reload comments
+          selectedRating = 0;
+          userRating.querySelectorAll('.star').forEach(s => s.classList.remove('filled'));
+          commentInput.value = '';
+          nicknameInput.value = '';
+          
+          showSuccess('Rating submitted successfully!');
+          loadComments(currentAgency.id);
+          loadAgencies(); // Refresh the agency list to show updated rating
+        })
+        .catch(error => {
+          console.error("Error adding comment: ", error);
+          showError('Failed to submit rating. Please try again.');
+        });
+    });
+    
+    function likeComment(agencyId, commentId) {
+      const commentRef = db.collection('agencies').doc(agencyId).collection('comments').doc(commentId);
+      
+      db.runTransaction(transaction => {
+        return transaction.get(commentRef).then(commentDoc => {
+          if (!commentDoc.exists) {
+            throw "Comment does not exist!";
+          }
+          
+          const comment = commentDoc.data();
+          const likedBy = comment.likedBy || [];
+          const currentUserIndex = likedBy.indexOf(clientId);
+          
+          if (currentUserIndex === -1) {
+            // User hasn't liked this comment yet
+            likedBy.push(clientId);
+            transaction.update(commentRef, {
+              likes: (comment.likes || 0) + 1,
+              likedBy: likedBy
+            });
+          } else {
+            // User already liked this comment, so unlike it
+            likedBy.splice(currentUserIndex, 1);
+            transaction.update(commentRef, {
+              likes: Math.max((comment.likes || 0) - 1, 0),
+              likedBy: likedBy
+            });
+          }
+        });
+      }).then(() => {
+        loadComments(agencyId);
+      }).catch(error => {
+        console.error("Error updating like: ", error);
+        showError('Failed to update like. Please try again.');
+      });
+    }
+    
+    // New Agency Functions
+    addAgencyButton.addEventListener('click', () => {
+      agencyDetails.style.display = 'none';
+      newAgencyForm.style.display = 'block';
+      newAgencyName.value = '';
+      newAgencyComment.value = '';
+      newAgencyNickname.value = '';
+      newAgencySelectedRating = 0;
+      newAgencyRating.querySelectorAll('.star').forEach(s => s.classList.remove('filled'));
+    });
+    
+    cancelNewAgency.addEventListener('click', () => {
+      newAgencyForm.style.display = 'none';
+    });
+    
+    submitNewAgency.addEventListener('click', () => {
+      const name = newAgencyName.value.trim();
+      if (!name) {
+        showError('Please enter an agency name.');
+        return;
+      }
+      
+      if (!newAgencySelectedRating) {
+        showError('Please select a rating.');
+        return;
+      }
+      
+      const comment = newAgencyComment.value.trim();
+      if (!comment) {
+        showError('Please enter a comment.');
+        return;
+      }
+      
+      // Show loading indicator
+      submitNewAgency.disabled = true;
+      submitNewAgency.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...';
+      
+      // Check if agency already exists
+      db.collection('agencies').where('nameLower', '==', name.toLowerCase()).get()
+        .then(snapshot => {
+          if (!snapshot.empty) {
+            showError('This agency already exists. Please search for it instead.');
+            submitNewAgency.disabled = false;
+            submitNewAgency.innerHTML = 'Add Agency';
+            return Promise.reject('Agency exists');
+          }
+          
+          // Add new agency
+          return db.collection('agencies').add({
+            name: name,
+            nameLower: name.toLowerCase(),
+            averageRating: newAgencySelectedRating,
+            ratingCount: 1,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        })
+        .then(agencyRef => {
+          // Add initial comment
+          return db.collection('agencies').doc(agencyRef.id).collection('comments').add({
+            rating: newAgencySelectedRating,
+            text: comment,
+            nickname: newAgencyNickname.value.trim() || 'Anonymous',
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            likes: 0,
+            likedBy: []
+          }).then(() => agencyRef.id);
+        })
+        .then(agencyId => {
+          newAgencyForm.style.display = 'none';
+          submitNewAgency.disabled = false;
+          submitNewAgency.innerHTML = 'Add Agency';
+          showSuccess('Agency added successfully!');
+          loadAgencies();
+          loadAgencyDetails(agencyId);
+        })
+        .catch(error => {
+          if (error === 'Agency exists') return;
+          console.error("Error adding agency: ", error);
+          submitNewAgency.disabled = false;
+          submitNewAgency.innerHTML = 'Add Agency';
+          showError('Failed to add agency: ' + error.message);
+        });
+    });
+    
+    // Function to export data for Chrome extension
+    window.getAgencyData = function() {
+      return db.collection('agencies').get().then(snapshot => {
+        const agencies = [];
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          agencies.push({
+            id: doc.id,
+            name: data.name,
+            rating: data.averageRating || 0,
+            ratingCount: data.ratingCount || 0
+          });
+        });
+        return agencies;
+      });
+    };
+    
+    // Initialize the app
+    loadAgencies();
+  </script>
+</body>
 </html>
