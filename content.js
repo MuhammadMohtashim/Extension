@@ -142,15 +142,7 @@ function queryCompanyInfo(companyName, element, showAsPopup = false) {
   );
 }
 
-// Add this to your extension's popup.html or relevant UI file
 
-const collaborateButton = document.createElement('button');
-collaborateButton.textContent = 'Collaborate on Ratings';
-collaborateButton.addEventListener('click', () => {
-  chrome.tabs.create({ url: 'https://your-firebase-project-id.web.app' });
-});
-
-document.getElementById('your-button-container').appendChild(collaborateButton);
 
 
 // Add this function to content.js

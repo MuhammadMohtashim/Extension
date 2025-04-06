@@ -108,3 +108,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (numRating >= 3) return '#ffc107';
     return '#dc3545';
   }
+
+
+ // Add this to your extension's popup.html or relevant UI file
+
+ const collaborateButton = document.createElement('button');
+ collaborateButton.textContent = 'Collaborate on Ratings';
+ collaborateButton.addEventListener('click', () => {
+   chrome.tabs.create({ url: 'https://your-firebase-project-id.web.app' });
+ });
+ 
+ document.getElementById('your-button-container').appendChild(collaborateButton);
