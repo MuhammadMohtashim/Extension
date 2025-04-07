@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Agency Rating Collaborator</title>
+  <!-- Using older versions compatible with the Firebase version in your original code -->
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -160,8 +161,8 @@
       apiKey: "AIzaSyDg0ACWUvUb3S6xwEdfjGKgTQmjEsulQMs",
       authDomain: "recruiter-search-c7515.firebaseapp.com",
       projectId: "recruiter-search-c7515",
-      databaseURL: "https://recruiter-search-c7515-default-rtdb.firebaseio.com",
-      storageBucket: "recruiter-search-c7515.firebasestorage.app",
+      databaseURL: "https://recruiter-search-c7515-default-rtdb.firebaseio.com", // Added database URL for Realtime Database
+      storageBucket: "recruiter-search-c7515.appspot.com",
       messagingSenderId: "342601714550",
       appId: "1:342601714550:web:699bd13e200851136a4857",
       measurementId: "G-LPJ6ZNG23T"
@@ -197,7 +198,6 @@
     let currentAgency = null;
     let selectedRating = 0;
     let newAgencySelectedRating = 0;
-    let agenciesCache = [];
     
     // Helper functions for UI messages
     function showError(message) {
@@ -219,57 +219,42 @@
       Date.now().toString(36) + Math.random().toString(36).substr(2);
     localStorage.setItem('clientId', clientId);
     
-    // Helper function to create safe keys for Firebase Realtime DB
-    function createSafeKey(name) {
-      return name.toLowerCase().replace(/[.#$\/\[\]]/g, '_');
-    }
-    
     // Agency List Functions
     function loadAgencies() {
       agencyList.innerHTML = '<div class="loading">Loading agencies...</div>';
       
-      db.ref('agencies').once('value')
-        .then(snapshot => {
-          agencyList.innerHTML = '';
-          agenciesCache = [];
-          
-          if (!snapshot.exists()) {
-            agencyList.innerHTML = '<div class="p-3">No agencies found. Add the first one!</div>';
-            return;
-          }
-          
-          const agencies = snapshot.val();
-          const agencyArray = [];
-          
-          // Convert object to array
-          for (const key in agencies) {
-            if (agencies.hasOwnProperty(key)) {
-              agencyArray.push({
-                id: key,
-                ...agencies[key]
-              });
-            }
-          }
-          
-          // Sort by name
-          agencyArray.sort((a, b) => a.name.localeCompare(b.name));
-          agenciesCache = agencyArray;
-          
-          // Display in the list
-          agencyArray.forEach(agency => {
-            const div = document.createElement('div');
-            div.className = 'agency-list-item';
-            div.textContent = `${agency.name} (${agency.averageRating ? agency.averageRating.toFixed(1) : '0.0'})`;
-            div.dataset.id = agency.id;
-            div.addEventListener('click', () => loadAgencyDetails(agency.id));
-            agencyList.appendChild(div);
+      db.ref('agencies').orderByChild('name').once('value').then(snapshot => {
+        agencyList.innerHTML = '';
+        
+        if (!snapshot.exists()) {
+          agencyList.innerHTML = '<div class="p-3">No agencies found. Add the first one!</div>';
+          return;
+        }
+        
+        const agencies = [];
+        snapshot.forEach(childSnapshot => {
+          agencies.push({
+            id: childSnapshot.key,
+            ...childSnapshot.val()
           });
-        })
-        .catch(error => {
-          console.error("Error loading agencies:", error);
-          agencyList.innerHTML = '<div class="p-3 text-danger">Error loading agencies. Please refresh the page.</div>';
-          showError("Failed to load agencies. Please check your connection and try again.");
         });
+        
+        // Sort agencies by name
+        agencies.sort((a, b) => a.name.localeCompare(b.name));
+        
+        agencies.forEach(agency => {
+          const div = document.createElement('div');
+          div.className = 'agency-list-item';
+          div.textContent = `${agency.name} (${agency.averageRating ? agency.averageRating.toFixed(1) : '0.0'})`;
+          div.dataset.id = agency.id;
+          div.addEventListener('click', () => loadAgencyDetails(agency.id));
+          agencyList.appendChild(div);
+        });
+      }).catch(error => {
+        console.error("Error loading agencies:", error);
+        agencyList.innerHTML = '<div class="p-3 text-danger">Error loading agencies. Please refresh the page.</div>';
+        showError("Failed to load agencies. Please check your connection and try again.");
+      });
     }
     
     agencySearch.addEventListener('input', () => {
@@ -289,115 +274,104 @@
     function loadAgencyDetails(agencyId) {
       newAgencyForm.style.display = 'none';
       
-      db.ref(`agencies/${agencyId}`).once('value')
-        .then(snapshot => {
-          if (snapshot.exists()) {
-            currentAgency = { id: agencyId, ...snapshot.val() };
-            agencyNameElement.textContent = currentAgency.name;
-            
-            // Display average rating with stars
-            agencyRatingElement.innerHTML = '';
-            for (let i = 1; i <= 5; i++) {
-              const star = document.createElement('span');
-              star.className = 'star' + (i <= Math.round(currentAgency.averageRating || 0) ? ' filled' : '');
-              star.textContent = '★';
-              agencyRatingElement.appendChild(star);
-            }
-            
-            ratingCountElement.textContent = `(${currentAgency.ratingCount || 0} ratings)`;
-            
-            // Reset user rating UI
-            selectedRating = 0;
-            const stars = userRating.querySelectorAll('.star');
-            stars.forEach(star => star.classList.remove('filled'));
-            commentInput.value = '';
-            nicknameInput.value = '';
-            
-            // Load comments
-            loadComments(agencyId);
-            
-            agencyDetails.style.display = 'block';
-          } else {
-            console.error("Agency not found");
-            showError("Agency not found. Please try again.");
+      db.ref(`agencies/${agencyId}`).once('value').then(snapshot => {
+        if (snapshot.exists()) {
+          currentAgency = { id: snapshot.key, ...snapshot.val() };
+          agencyNameElement.textContent = currentAgency.name;
+          
+          // Display average rating with stars
+          agencyRatingElement.innerHTML = '';
+          for (let i = 1; i <= 5; i++) {
+            const star = document.createElement('span');
+            star.className = 'star' + (i <= Math.round(currentAgency.averageRating || 0) ? ' filled' : '');
+            star.textContent = '★';
+            agencyRatingElement.appendChild(star);
           }
-        })
-        .catch(error => {
-          console.error("Error loading agency details:", error);
-          showError("Error loading agency details. Please try again.");
-        });
+          
+          ratingCountElement.textContent = `(${currentAgency.ratingCount || 0} ratings)`;
+          
+          // Reset user rating UI
+          selectedRating = 0;
+          const stars = userRating.querySelectorAll('.star');
+          stars.forEach(star => star.classList.remove('filled'));
+          commentInput.value = '';
+          nicknameInput.value = '';
+          
+          // Load comments
+          loadComments(agencyId);
+          
+          agencyDetails.style.display = 'block';
+        } else {
+          console.error("Agency not found");
+          showError("Agency not found. Please try again.");
+        }
+      }).catch(error => {
+        console.error("Error loading agency details:", error);
+        showError("Error loading agency details. Please try again.");
+      });
     }
     
     function loadComments(agencyId) {
       commentsContainer.innerHTML = '<div class="loading">Loading comments...</div>';
       
-      db.ref(`agencies/${agencyId}/comments`).once('value')
-        .then(snapshot => {
-          commentsContainer.innerHTML = '';
-          
-          if (!snapshot.exists()) {
-            commentsContainer.innerHTML = '<p>No comments yet. Be the first to comment!</p>';
-            return;
-          }
-          
-          const comments = snapshot.val();
-          const commentArray = [];
-          
-          // Convert object to array
-          for (const key in comments) {
-            if (comments.hasOwnProperty(key)) {
-              commentArray.push({
-                id: key,
-                ...comments[key]
-              });
-            }
-          }
-          
-          // Sort by likes (descending)
-          commentArray.sort((a, b) => (b.likes || 0) - (a.likes || 0));
-          
-          // Take top 5 comments
-          const topComments = commentArray.slice(0, 5);
-          
-          topComments.forEach(comment => {
-            const div = document.createElement('div');
-            div.className = 'comment-card';
-            
-            // Display rating with stars
-            let starsHtml = '';
-            for (let i = 1; i <= 5; i++) {
-              starsHtml += `<span class="star${i <= comment.rating ? ' filled' : ''}" style="cursor: default;">★</span>`;
-            }
-            
-            // Check if this client has liked the comment
-            const isLiked = comment.likedBy && comment.likedBy.includes(clientId);
-            
-            div.innerHTML = `
-              <div class="d-flex justify-content-between">
-                <div>
-                  <div class="star-rating">${starsHtml}</div>
-                  <small>${comment.nickname || 'Anonymous'}</small>
-                </div>
-                <div>
-                  <span class="like-button${isLiked ? ' liked' : ''}" data-id="${comment.id}">
-                    👍 ${comment.likes || 0}
-                  </span>
-                </div>
-              </div>
-              <p class="mt-2">${comment.text}</p>
-            `;
-            
-            // Add event listener to like button
-            const likeButton = div.querySelector('.like-button');
-            likeButton.addEventListener('click', () => likeComment(agencyId, comment.id));
-            
-            commentsContainer.appendChild(div);
+      db.ref(`agencies/${agencyId}/comments`).orderByChild('likes').limitToLast(5).once('value').then(snapshot => {
+        commentsContainer.innerHTML = '';
+        
+        if (!snapshot.exists()) {
+          commentsContainer.innerHTML = '<p>No comments yet. Be the first to comment!</p>';
+          return;
+        }
+        
+        const comments = [];
+        snapshot.forEach(childSnapshot => {
+          comments.push({
+            id: childSnapshot.key,
+            ...childSnapshot.val()
           });
-        })
-        .catch(error => {
-          console.error("Error loading comments:", error);
-          commentsContainer.innerHTML = '<p class="text-danger">Error loading comments. Please try again.</p>';
         });
+        
+        // Sort by likes in descending order
+        comments.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+        
+        comments.forEach(comment => {
+          const div = document.createElement('div');
+          div.className = 'comment-card';
+          
+          // Display rating with stars
+          let starsHtml = '';
+          for (let i = 1; i <= 5; i++) {
+            starsHtml += `<span class="star${i <= comment.rating ? ' filled' : ''}" style="cursor: default;">★</span>`;
+          }
+          
+          // Check if this client has liked the comment
+          const likedBy = comment.likedBy || {};
+          const isLiked = likedBy[clientId] === true;
+          
+          div.innerHTML = `
+            <div class="d-flex justify-content-between">
+              <div>
+                <div class="star-rating">${starsHtml}</div>
+                <small>${comment.nickname || 'Anonymous'}</small>
+              </div>
+              <div>
+                <span class="like-button${isLiked ? ' liked' : ''}" data-id="${comment.id}">
+                  👍 ${comment.likes || 0}
+                </span>
+              </div>
+            </div>
+            <p class="mt-2">${comment.text}</p>
+          `;
+          
+          // Add event listener to like button
+          const likeButton = div.querySelector('.like-button');
+          likeButton.addEventListener('click', () => likeComment(agencyId, comment.id));
+          
+          commentsContainer.appendChild(div);
+        });
+      }).catch(error => {
+        console.error("Error loading comments:", error);
+        commentsContainer.innerHTML = '<p class="text-danger">Error loading comments. Please try again.</p>';
+      });
     }
     
     // Rating functions
@@ -472,26 +446,24 @@
         nickname: nicknameInput.value.trim() || 'Anonymous',
         timestamp: Date.now(),
         likes: 0,
-        likedBy: []
+        likedBy: {}
       };
       
       // Add the comment
       const newCommentRef = db.ref(`agencies/${currentAgency.id}/comments`).push();
-      
       newCommentRef.set(comment)
         .then(() => {
           // Update agency rating
-          return db.ref(`agencies/${currentAgency.id}`).once('value');
-        })
-        .then(snapshot => {
-          const agency = snapshot.val();
-          const totalRating = (agency.averageRating || 0) * (agency.ratingCount || 0) + selectedRating;
-          const newRatingCount = (agency.ratingCount || 0) + 1;
-          const newAverage = totalRating / newRatingCount;
-          
-          return db.ref(`agencies/${currentAgency.id}`).update({
-            averageRating: newAverage,
-            ratingCount: newRatingCount
+          return db.ref(`agencies/${currentAgency.id}`).transaction((agency) => {
+            if (agency) {
+              const totalRating = (agency.averageRating || 0) * (agency.ratingCount || 0) + selectedRating;
+              const newRatingCount = (agency.ratingCount || 0) + 1;
+              const newAverage = totalRating / newRatingCount;
+              
+              agency.averageRating = newAverage;
+              agency.ratingCount = newRatingCount;
+            }
+            return agency;
           });
         })
         .then(() => {
@@ -514,39 +486,29 @@
     function likeComment(agencyId, commentId) {
       const commentRef = db.ref(`agencies/${agencyId}/comments/${commentId}`);
       
-      commentRef.once('value')
-        .then(snapshot => {
-          if (!snapshot.exists()) {
-            throw new Error("Comment does not exist!");
-          }
+      commentRef.transaction((comment) => {
+        if (comment) {
+          const likedBy = comment.likedBy || {};
           
-          const comment = snapshot.val();
-          const likedBy = comment.likedBy || [];
-          const currentUserIndex = likedBy.indexOf(clientId);
-          
-          if (currentUserIndex === -1) {
-            // User hasn't liked this comment yet
-            likedBy.push(clientId);
-            return commentRef.update({
-              likes: (comment.likes || 0) + 1,
-              likedBy: likedBy
-            });
-          } else {
+          if (likedBy[clientId]) {
             // User already liked this comment, so unlike it
-            likedBy.splice(currentUserIndex, 1);
-            return commentRef.update({
-              likes: Math.max((comment.likes || 0) - 1, 0),
-              likedBy: likedBy
-            });
+            likedBy[clientId] = null;
+            comment.likes = Math.max((comment.likes || 0) - 1, 0);
+          } else {
+            // User hasn't liked this comment yet
+            likedBy[clientId] = true;
+            comment.likes = (comment.likes || 0) + 1;
           }
-        })
-        .then(() => {
-          loadComments(agencyId);
-        })
-        .catch(error => {
-          console.error("Error updating like: ", error);
-          showError('Failed to update like. Please try again.');
-        });
+          
+          comment.likedBy = likedBy;
+        }
+        return comment;
+      }).then(() => {
+        loadComments(agencyId);
+      }).catch(error => {
+        console.error("Error updating like: ", error);
+        showError('Failed to update like. Please try again.');
+      });
     }
     
     // New Agency Functions
@@ -588,50 +550,51 @@
       
       // Check if agency already exists
       const nameLower = name.toLowerCase();
-      const existingAgency = agenciesCache.find(a => a.name.toLowerCase() === nameLower);
-      
-      if (existingAgency) {
-        showError('This agency already exists. Please search for it instead.');
-        submitNewAgency.disabled = false;
-        submitNewAgency.innerHTML = 'Add Agency';
-        return;
-      }
-      
-      // Create a safe key for the agency
-      const agencyKey = createSafeKey(name);
-      
-      // Add new agency
-      const newAgencyData = {
-        name: name,
-        averageRating: newAgencySelectedRating,
-        ratingCount: 1,
-        createdAt: Date.now()
-      };
-      
-      // Add the agency
-      db.ref(`agencies/${agencyKey}`).set(newAgencyData)
-        .then(() => {
+      db.ref('agencies').orderByChild('nameLower').equalTo(nameLower).once('value')
+        .then(snapshot => {
+          if (snapshot.exists()) {
+            showError('This agency already exists. Please search for it instead.');
+            submitNewAgency.disabled = false;
+            submitNewAgency.innerHTML = 'Add Agency';
+            return Promise.reject('Agency exists');
+          }
+          
+          // Add new agency
+          const newAgencyRef = db.ref('agencies').push();
+          const agencyId = newAgencyRef.key;
+          const newAgency = {
+            name: name,
+            nameLower: nameLower,
+            averageRating: newAgencySelectedRating,
+            ratingCount: 1,
+            createdAt: Date.now(),
+            comments: {}
+          };
+          
           // Add initial comment
-          const comment = {
+          const initialComment = {
             rating: newAgencySelectedRating,
-            text: newAgencyComment.value.trim(),
+            text: comment,
             nickname: newAgencyNickname.value.trim() || 'Anonymous',
             timestamp: Date.now(),
             likes: 0,
-            likedBy: []
+            likedBy: {}
           };
           
-          return db.ref(`agencies/${agencyKey}/comments`).push().set(comment);
+          newAgency.comments[db.ref().push().key] = initialComment;
+          
+          return newAgencyRef.set(newAgency).then(() => agencyId);
         })
-        .then(() => {
+        .then(agencyId => {
           newAgencyForm.style.display = 'none';
           submitNewAgency.disabled = false;
           submitNewAgency.innerHTML = 'Add Agency';
           showSuccess('Agency added successfully!');
           loadAgencies();
-          loadAgencyDetails(agencyKey);
+          loadAgencyDetails(agencyId);
         })
         .catch(error => {
+          if (error === 'Agency exists') return;
           console.error("Error adding agency: ", error);
           submitNewAgency.disabled = false;
           submitNewAgency.innerHTML = 'Add Agency';
@@ -641,23 +604,24 @@
     
     // Function to export data for Chrome extension
     window.getAgencyData = function() {
-      return db.ref('agencies').once('value').then(snapshot => {
-        const agencies = [];
-        const data = snapshot.val() || {};
-        
-        for (const id in data) {
-          if (data.hasOwnProperty(id)) {
-            const agency = data[id];
-            agencies.push({
-              id: id,
-              name: agency.name,
-              rating: agency.averageRating || 0,
-              ratingCount: agency.ratingCount || 0
+      return new Promise((resolve, reject) => {
+        db.ref('agencies').once('value')
+          .then(snapshot => {
+            const agencies = [];
+            snapshot.forEach(childSnapshot => {
+              const data = childSnapshot.val();
+              agencies.push({
+                id: childSnapshot.key,
+                name: data.name,
+                rating: data.averageRating || 0,
+                ratingCount: data.ratingCount || 0
+              });
             });
-          }
-        }
-        
-        return agencies;
+            resolve(agencies);
+          })
+          .catch(error => {
+            reject(error);
+          });
       });
     };
     
