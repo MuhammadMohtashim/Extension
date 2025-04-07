@@ -145,7 +145,7 @@ function queryCompanyInfo(companyName, element, showAsPopup = false) {
 
 
 
-// Add this function to content.js
+// Update this function in content.js
 function displayCompanyInfoPopup(company, element) {
   // Remove any existing popup first
   const existingPopup = document.querySelector('.agency-checker-popup');
@@ -203,10 +203,47 @@ function displayCompanyInfoPopup(company, element) {
   
   // Comments section
   const comments = document.createElement('div');
-  comments.innerHTML = `
-    <strong>Agency Comments:</strong>
-    <p>${company.comments || 'No comments available'}</p>
+  
+  // Handle comments that might be delimited with |
+  let commentsHtml = '';
+  if (company.comments) {
+    if (company.comments.includes('|')) {
+      // Split comments by the delimiter and create a list
+      const commentsList = company.comments.split('|').map(comment => 
+        `<li>${comment.trim()}</li>`
+      ).join('');
+      commentsHtml = `<strong>Top Comments:</strong><ul style="padding-left: 20px; margin-top: 5px;">${commentsList}</ul>`;
+    } else {
+      commentsHtml = `<strong>Agency Comments:</strong><p>${company.comments}</p>`;
+    }
+  } else {
+    commentsHtml = '<p>No comments available</p>';
+  }
+  
+  comments.innerHTML = commentsHtml;
+  
+  // Add "Contribute" button
+  const contributeButton = document.createElement('button');
+  contributeButton.textContent = 'Add Your Rating';
+  contributeButton.style.cssText = `
+    background-color: #0073b1;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 15px;
+    margin-right: 10px;
   `;
+  contributeButton.onclick = () => {
+    // Open the Firebase web app with this agency pre-selected
+    const encodedName = encodeURIComponent(company.name);
+    chrome.runtime.sendMessage({ 
+      action: 'openContributeTab', 
+      url: `https://recruiter-search-c7515.firebaseapp.com?agency=${encodedName}` 
+    });
+    popup.remove();
+  };
   
   // Close button
   const closeButton = document.createElement('button');
@@ -218,24 +255,32 @@ function displayCompanyInfoPopup(company, element) {
     border-radius: 4px;
     cursor: pointer;
     margin-top: 15px;
-    float: right;
   `;
   closeButton.onclick = () => popup.remove();
+  
+  // Button container
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.cssText = `
+    display: flex;
+    justify-content: flex-end;
+  `;
+  buttonContainer.appendChild(contributeButton);
+  buttonContainer.appendChild(closeButton);
   
   // Assemble popup
   popup.appendChild(header);
   popup.appendChild(comments);
-  popup.appendChild(closeButton);
+  popup.appendChild(buttonContainer);
   
   // Add popup to the page
   document.body.appendChild(popup);
   
-  // Auto-dismiss after 10 seconds
+  // Auto-dismiss after 15 seconds
   setTimeout(() => {
     if (document.body.contains(popup)) {
       popup.remove();
     }
-  }, 10000);
+  }, 15000);
 }
 
 // Get color based on company rating

@@ -1,47 +1,94 @@
 let companyData = [];
 
-// Fetch company data from GitHub CSV
+// Fetch company data from Firebase Realtime Database
 async function fetchCompanyData() {
   try {
-    // Replace with your actual GitHub raw CSV URL
-    const response = await fetch("https://raw.githubusercontent.com/MuhammadMohtashim/Extension/refs/heads/main/data.csv");
-    const csvText = await response.text();
-    companyData = parseCSV(csvText);
+    // Get your Firebase config from the Firebase console
+    // Format: https://YOUR-PROJECT-ID.firebasedatabase.app/agencies.json
+    const response = await fetch("https://recruiter-search-c7515-default-rtdb.europe-west1.firebasedatabase.app/agencies.json");
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Convert Firebase object format to array
+    companyData = [];
+    for (const key in data) {
+      if (data.hasOwnProperty(key)) {
+        const agency = data[key];
+        
+        // Calculate average rating if there are multiple ratings
+        let avgRating = 0;
+        if (agency.ratings && Array.isArray(agency.ratings)) {
+          const sum = agency.ratings.reduce((total, curr) => total + curr, 0);
+          avgRating = (sum / agency.ratings.length).toFixed(1);
+        } else if (typeof agency.ratings === 'object') {
+          // Handle ratings as an object with numeric keys
+          const ratingsArray = Object.values(agency.ratings);
+          const sum = ratingsArray.reduce((total, curr) => total + curr, 0);
+          avgRating = (sum / ratingsArray.length).toFixed(1);
+        } else {
+          avgRating = agency.rating || "0";
+        }
+        
+        // Get top comments if available (sorted by likes)
+        let topComments = "";
+        if (agency.comments && Array.isArray(agency.comments)) {
+          // Sort by likes and take top 5
+          const sortedComments = [...agency.comments]
+            .sort((a, b) => (b.likes || 0) - (a.likes || 0))
+            .slice(0, 5);
+          
+          topComments = sortedComments
+            .map(comment => comment.text)
+            .join(" | ");
+        } else if (typeof agency.comments === 'object') {
+          // Handle comments as an object with keys
+          const commentsArray = Object.values(agency.comments);
+          const sortedComments = commentsArray
+            .sort((a, b) => (b.likes || 0) - (a.likes || 0))
+            .slice(0, 5);
+            
+          topComments = sortedComments
+            .map(comment => comment.text)
+            .join(" | ");
+        } else {
+          topComments = agency.comments || "";
+        }
+        
+        companyData.push({
+          id: key,
+          name: agency.name || "",
+          rating: avgRating,
+          comments: topComments
+        });
+      }
+    }
     
     // Store in local storage for quick access
     chrome.storage.local.set({ companyData: companyData });
-    console.log('Company data loaded:', companyData.length, 'entries');
+    console.log('Company data loaded from Firebase:', companyData.length, 'entries');
   } catch (error) {
-    console.error('Error fetching company data:', error);
+    console.error('Error fetching company data from Firebase:', error);
+    
+    // Attempt to load from local storage as fallback
+    chrome.storage.local.get('companyData', (data) => {
+      if (data.companyData) {
+        companyData = data.companyData;
+        console.log('Loaded cached data:', companyData.length, 'entries');
+      }
+    });
   }
-}
-
-// Parse CSV into an array of company objects
-function parseCSV(csvText) {
-  const lines = csvText.split('\n');
-  const headers = lines[0].split(',');
-  
-  return lines.slice(1).map(line => {
-    if (!line.trim()) return null;
-    
-    const values = line.split(',');
-    const company = {};
-    
-    // Map CSV headers to our expected properties
-    company.name = values[headers.indexOf('Agency Name')]?.trim() || '';
-    company.rating = values[headers.indexOf('Agency Rating')]?.trim() || '0';
-    company.comments = values[headers.indexOf('Agency Comments')]?.trim() || '';
-    
-    return company;
-  }).filter(company => company !== null && company.name);
 }
 
 // Initial data load when extension is installed
 chrome.runtime.onInstalled.addListener(() => {
   fetchCompanyData();
   
-  // Set up periodic data refresh (e.g., once a day)
-  setInterval(fetchCompanyData, 24 * 60 * 60 * 1000);
+  // Set up periodic data refresh (e.g., once every hour)
+  setInterval(fetchCompanyData, 60 * 60 * 1000);
 });
 
 // Listen for messages from content script
@@ -51,8 +98,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const matchedCompany = findCompany(companyName);
     sendResponse({ company: matchedCompany });
   } else if (request.action === 'refreshData') {
-    fetchCompanyData();
-    sendResponse({ success: true });
+    fetchCompanyData()
+      .then(() => sendResponse({ success: true }))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true; // Keep the message channel open for async response
+  } else if (request.action === 'getCompanyData') {
+    sendResponse({ companyData: companyData });
   }
   return true; // Keep the message channel open for async response
 });

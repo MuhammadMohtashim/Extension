@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-    
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Agency Rating Collaborator</title>
   <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     .comment-card {
@@ -43,6 +41,18 @@
     .agency-list-item:hover {
       background-color: #f8f9fa;
     }
+    .loading {
+      text-align: center;
+      padding: 20px;
+    }
+    .error-message {
+      color: #dc3545;
+      margin-top: 10px;
+    }
+    .success-message {
+      color: #198754;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -50,19 +60,12 @@
     <div class="row">
       <div class="col-12">
         <h1>Agency Rating Collaborator</h1>
-        <div id="auth-container" class="mb-4">
-          <div id="login-container">
-            <button id="login-button" class="btn btn-primary">Sign In</button>
-          </div>
-          <div id="user-container" style="display: none;">
-            <span id="user-email"></span>
-            <button id="logout-button" class="btn btn-outline-secondary btn-sm ms-2">Sign Out</button>
-          </div>
-        </div>
+        <p class="text-muted">Collaborate on agency ratings and reviews</p>
+        <div id="status-message"></div>
       </div>
     </div>
 
-    <div class="row" id="main-content" style="display: none;">
+    <div class="row" id="main-content">
       <div class="col-md-4">
         <div class="card">
           <div class="card-header">
@@ -72,7 +75,9 @@
             <div class="input-group mb-3">
               <input type="text" id="agency-search" class="form-control" placeholder="Search agencies...">
             </div>
-            <div id="agency-list" class="list-group"></div>
+            <div id="agency-list" class="list-group">
+              <div class="loading">Loading agencies...</div>
+            </div>
             <button id="add-agency-button" class="btn btn-primary mt-3">Add New Agency</button>
           </div>
         </div>
@@ -98,6 +103,11 @@
             <div class="form-group mb-3">
               <label for="comment-input">Your Comment</label>
               <textarea id="comment-input" class="form-control" rows="3"></textarea>
+            </div>
+            
+            <div class="form-group mb-3">
+              <label for="nickname-input">Your Name/Nickname (optional)</label>
+              <input type="text" id="nickname-input" class="form-control" placeholder="Anonymous">
             </div>
             
             <button id="submit-rating" class="btn btn-primary mb-4">Submit Rating</button>
@@ -131,6 +141,11 @@
               <textarea id="new-agency-comment" class="form-control" rows="3"></textarea>
             </div>
             
+            <div class="form-group mb-3">
+              <label for="new-agency-nickname">Your Name/Nickname (optional)</label>
+              <input type="text" id="new-agency-nickname" class="form-control" placeholder="Anonymous">
+            </div>
+            
             <button id="submit-new-agency" class="btn btn-primary">Add Agency</button>
             <button id="cancel-new-agency" class="btn btn-outline-secondary">Cancel</button>
           </div>
@@ -140,29 +155,24 @@
   </div>
 
   <script>
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDg0ACWUvUb3S6xwEdfjGKgTQmjEsulQMs",
-  authDomain: "recruiter-search-c7515.firebaseapp.com",
-  projectId: "recruiter-search-c7515",
-  storageBucket: "recruiter-search-c7515.firebasestorage.app",
-  messagingSenderId: "342601714550",
-  appId: "1:342601714550:web:699bd13e200851136a4857",
-  measurementId: "G-LPJ6ZNG23T"
-};
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDg0ACWUvUb3S6xwEdfjGKgTQmjEsulQMs",
+      authDomain: "recruiter-search-c7515.firebaseapp.com",
+      projectId: "recruiter-search-c7515",
+      databaseURL: "https://recruiter-search-c7515-default-rtdb.firebaseio.com",
+      storageBucket: "recruiter-search-c7515.firebasestorage.app",
+      messagingSenderId: "342601714550",
+      appId: "1:342601714550:web:699bd13e200851136a4857",
+      measurementId: "G-LPJ6ZNG23T"
+    };
     
     // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+    const db = firebase.database();
     
     // DOM Elements
-    const loginButton = document.getElementById('login-button');
-    const logoutButton = document.getElementById('logout-button');
-    const userContainer = document.getElementById('user-container');
-    const loginContainer = document.getElementById('login-container');
-    const userEmail = document.getElementById('user-email');
-    const mainContent = document.getElementById('main-content');
+    const statusMessage = document.getElementById('status-message');
     const agencySearch = document.getElementById('agency-search');
     const agencyList = document.getElementById('agency-list');
     const agencyDetails = document.getElementById('agency-details');
@@ -171,6 +181,7 @@ const firebaseConfig = {
     const ratingCountElement = document.getElementById('rating-count');
     const userRating = document.getElementById('user-rating');
     const commentInput = document.getElementById('comment-input');
+    const nicknameInput = document.getElementById('nickname-input');
     const submitRating = document.getElementById('submit-rating');
     const commentsContainer = document.getElementById('comments-container');
     const addAgencyButton = document.getElementById('add-agency-button');
@@ -178,55 +189,87 @@ const firebaseConfig = {
     const newAgencyName = document.getElementById('new-agency-name');
     const newAgencyRating = document.getElementById('new-agency-rating');
     const newAgencyComment = document.getElementById('new-agency-comment');
+    const newAgencyNickname = document.getElementById('new-agency-nickname');
     const submitNewAgency = document.getElementById('submit-new-agency');
     const cancelNewAgency = document.getElementById('cancel-new-agency');
     
     // Global variables
-    let currentUser = null;
     let currentAgency = null;
     let selectedRating = 0;
     let newAgencySelectedRating = 0;
+    let agenciesCache = [];
     
-    // Authentication
-    loginButton.addEventListener('click', () => {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithPopup(provider);
-    });
+    // Helper functions for UI messages
+    function showError(message) {
+      statusMessage.innerHTML = `<div class="alert alert-danger">${message}</div>`;
+      setTimeout(() => {
+        statusMessage.innerHTML = '';
+      }, 5000);
+    }
     
-    logoutButton.addEventListener('click', () => {
-      auth.signOut();
-    });
+    function showSuccess(message) {
+      statusMessage.innerHTML = `<div class="alert alert-success">${message}</div>`;
+      setTimeout(() => {
+        statusMessage.innerHTML = '';
+      }, 5000);
+    }
     
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        currentUser = user;
-        userEmail.textContent = user.email;
-        loginContainer.style.display = 'none';
-        userContainer.style.display = 'block';
-        mainContent.style.display = 'flex';
-        loadAgencies();
-      } else {
-        currentUser = null;
-        loginContainer.style.display = 'block';
-        userContainer.style.display = 'none';
-        mainContent.style.display = 'none';
-      }
-    });
+    // Generate a unique client ID for this browser session
+    const clientId = localStorage.getItem('clientId') || 
+      Date.now().toString(36) + Math.random().toString(36).substr(2);
+    localStorage.setItem('clientId', clientId);
+    
+    // Helper function to create safe keys for Firebase Realtime DB
+    function createSafeKey(name) {
+      return name.toLowerCase().replace(/[.#$\/\[\]]/g, '_');
+    }
     
     // Agency List Functions
     function loadAgencies() {
-      db.collection('agencies').orderBy('name').get().then(snapshot => {
-        agencyList.innerHTML = '';
-        snapshot.docs.forEach(doc => {
-          const agency = doc.data();
-          const div = document.createElement('div');
-          div.className = 'agency-list-item';
-          div.textContent = `${agency.name} (${agency.averageRating.toFixed(1)})`;
-          div.dataset.id = doc.id;
-          div.addEventListener('click', () => loadAgencyDetails(doc.id));
-          agencyList.appendChild(div);
+      agencyList.innerHTML = '<div class="loading">Loading agencies...</div>';
+      
+      db.ref('agencies').once('value')
+        .then(snapshot => {
+          agencyList.innerHTML = '';
+          agenciesCache = [];
+          
+          if (!snapshot.exists()) {
+            agencyList.innerHTML = '<div class="p-3">No agencies found. Add the first one!</div>';
+            return;
+          }
+          
+          const agencies = snapshot.val();
+          const agencyArray = [];
+          
+          // Convert object to array
+          for (const key in agencies) {
+            if (agencies.hasOwnProperty(key)) {
+              agencyArray.push({
+                id: key,
+                ...agencies[key]
+              });
+            }
+          }
+          
+          // Sort by name
+          agencyArray.sort((a, b) => a.name.localeCompare(b.name));
+          agenciesCache = agencyArray;
+          
+          // Display in the list
+          agencyArray.forEach(agency => {
+            const div = document.createElement('div');
+            div.className = 'agency-list-item';
+            div.textContent = `${agency.name} (${agency.averageRating ? agency.averageRating.toFixed(1) : '0.0'})`;
+            div.dataset.id = agency.id;
+            div.addEventListener('click', () => loadAgencyDetails(agency.id));
+            agencyList.appendChild(div);
+          });
+        })
+        .catch(error => {
+          console.error("Error loading agencies:", error);
+          agencyList.innerHTML = '<div class="p-3 text-danger">Error loading agencies. Please refresh the page.</div>';
+          showError("Failed to load agencies. Please check your connection and try again.");
         });
-      });
     }
     
     agencySearch.addEventListener('input', () => {
@@ -246,50 +289,77 @@ const firebaseConfig = {
     function loadAgencyDetails(agencyId) {
       newAgencyForm.style.display = 'none';
       
-      db.collection('agencies').doc(agencyId).get().then(doc => {
-        if (doc.exists) {
-          currentAgency = { id: doc.id, ...doc.data() };
-          agencyNameElement.textContent = currentAgency.name;
-          
-          // Display average rating with stars
-          agencyRatingElement.innerHTML = '';
-          for (let i = 1; i <= 5; i++) {
-            const star = document.createElement('span');
-            star.className = 'star' + (i <= Math.round(currentAgency.averageRating) ? ' filled' : '');
-            star.textContent = '★';
-            agencyRatingElement.appendChild(star);
+      db.ref(`agencies/${agencyId}`).once('value')
+        .then(snapshot => {
+          if (snapshot.exists()) {
+            currentAgency = { id: agencyId, ...snapshot.val() };
+            agencyNameElement.textContent = currentAgency.name;
+            
+            // Display average rating with stars
+            agencyRatingElement.innerHTML = '';
+            for (let i = 1; i <= 5; i++) {
+              const star = document.createElement('span');
+              star.className = 'star' + (i <= Math.round(currentAgency.averageRating || 0) ? ' filled' : '');
+              star.textContent = '★';
+              agencyRatingElement.appendChild(star);
+            }
+            
+            ratingCountElement.textContent = `(${currentAgency.ratingCount || 0} ratings)`;
+            
+            // Reset user rating UI
+            selectedRating = 0;
+            const stars = userRating.querySelectorAll('.star');
+            stars.forEach(star => star.classList.remove('filled'));
+            commentInput.value = '';
+            nicknameInput.value = '';
+            
+            // Load comments
+            loadComments(agencyId);
+            
+            agencyDetails.style.display = 'block';
+          } else {
+            console.error("Agency not found");
+            showError("Agency not found. Please try again.");
           }
-          
-          ratingCountElement.textContent = `(${currentAgency.ratingCount} ratings)`;
-          
-          // Reset user rating UI
-          selectedRating = 0;
-          const stars = userRating.querySelectorAll('.star');
-          stars.forEach(star => star.classList.remove('filled'));
-          commentInput.value = '';
-          
-          // Load comments
-          loadComments(agencyId);
-          
-          agencyDetails.style.display = 'block';
-        }
-      });
+        })
+        .catch(error => {
+          console.error("Error loading agency details:", error);
+          showError("Error loading agency details. Please try again.");
+        });
     }
     
     function loadComments(agencyId) {
-      db.collection('agencies').doc(agencyId).collection('comments')
-        .orderBy('likes', 'desc')
-        .limit(5)
-        .get().then(snapshot => {
+      commentsContainer.innerHTML = '<div class="loading">Loading comments...</div>';
+      
+      db.ref(`agencies/${agencyId}/comments`).once('value')
+        .then(snapshot => {
           commentsContainer.innerHTML = '';
           
-          if (snapshot.empty) {
+          if (!snapshot.exists()) {
             commentsContainer.innerHTML = '<p>No comments yet. Be the first to comment!</p>';
             return;
           }
           
-          snapshot.docs.forEach(doc => {
-            const comment = doc.data();
+          const comments = snapshot.val();
+          const commentArray = [];
+          
+          // Convert object to array
+          for (const key in comments) {
+            if (comments.hasOwnProperty(key)) {
+              commentArray.push({
+                id: key,
+                ...comments[key]
+              });
+            }
+          }
+          
+          // Sort by likes (descending)
+          commentArray.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+          
+          // Take top 5 comments
+          const topComments = commentArray.slice(0, 5);
+          
+          topComments.forEach(comment => {
             const div = document.createElement('div');
             div.className = 'comment-card';
             
@@ -299,14 +369,17 @@ const firebaseConfig = {
               starsHtml += `<span class="star${i <= comment.rating ? ' filled' : ''}" style="cursor: default;">★</span>`;
             }
             
+            // Check if this client has liked the comment
+            const isLiked = comment.likedBy && comment.likedBy.includes(clientId);
+            
             div.innerHTML = `
               <div class="d-flex justify-content-between">
                 <div>
                   <div class="star-rating">${starsHtml}</div>
-                  <small>${comment.userEmail || 'Anonymous'}</small>
+                  <small>${comment.nickname || 'Anonymous'}</small>
                 </div>
                 <div>
-                  <span class="like-button${comment.likedBy && comment.likedBy.includes(currentUser.uid) ? ' liked' : ''}" data-id="${doc.id}">
+                  <span class="like-button${isLiked ? ' liked' : ''}" data-id="${comment.id}">
                     👍 ${comment.likes || 0}
                   </span>
                 </div>
@@ -316,19 +389,31 @@ const firebaseConfig = {
             
             // Add event listener to like button
             const likeButton = div.querySelector('.like-button');
-            likeButton.addEventListener('click', () => likeComment(agencyId, doc.id));
+            likeButton.addEventListener('click', () => likeComment(agencyId, comment.id));
             
             commentsContainer.appendChild(div);
           });
+        })
+        .catch(error => {
+          console.error("Error loading comments:", error);
+          commentsContainer.innerHTML = '<p class="text-danger">Error loading comments. Please try again.</p>';
         });
     }
     
     // Rating functions
     userRating.querySelectorAll('.star').forEach(star => {
-      star.addEventListener('click', () => {
-        selectedRating = parseInt(star.dataset.value);
-        
-        // Update UI
+      star.addEventListener('mouseover', () => {
+        const value = parseInt(star.dataset.value);
+        userRating.querySelectorAll('.star').forEach(s => {
+          if (parseInt(s.dataset.value) <= value) {
+            s.classList.add('filled');
+          } else {
+            s.classList.remove('filled');
+          }
+        });
+      });
+      
+      star.addEventListener('mouseout', () => {
         userRating.querySelectorAll('.star').forEach(s => {
           if (parseInt(s.dataset.value) <= selectedRating) {
             s.classList.add('filled');
@@ -337,13 +422,25 @@ const firebaseConfig = {
           }
         });
       });
+      
+      star.addEventListener('click', () => {
+        selectedRating = parseInt(star.dataset.value);
+      });
     });
     
     newAgencyRating.querySelectorAll('.star').forEach(star => {
-      star.addEventListener('click', () => {
-        newAgencySelectedRating = parseInt(star.dataset.value);
-        
-        // Update UI
+      star.addEventListener('mouseover', () => {
+        const value = parseInt(star.dataset.value);
+        newAgencyRating.querySelectorAll('.star').forEach(s => {
+          if (parseInt(s.dataset.value) <= value) {
+            s.classList.add('filled');
+          } else {
+            s.classList.remove('filled');
+          }
+        });
+      });
+      
+      star.addEventListener('mouseout', () => {
         newAgencyRating.querySelectorAll('.star').forEach(s => {
           if (parseInt(s.dataset.value) <= newAgencySelectedRating) {
             s.classList.add('filled');
@@ -352,51 +449,49 @@ const firebaseConfig = {
           }
         });
       });
+      
+      star.addEventListener('click', () => {
+        newAgencySelectedRating = parseInt(star.dataset.value);
+      });
     });
     
     submitRating.addEventListener('click', () => {
-      if (!currentUser) {
-        alert('Please sign in to submit a rating.');
-        return;
-      }
-      
       if (!selectedRating) {
-        alert('Please select a rating.');
+        showError('Please select a rating.');
         return;
       }
       
       if (!commentInput.value.trim()) {
-        alert('Please enter a comment.');
+        showError('Please enter a comment.');
         return;
       }
       
       const comment = {
         rating: selectedRating,
         text: commentInput.value.trim(),
-        userId: currentUser.uid,
-        userEmail: currentUser.email,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        nickname: nicknameInput.value.trim() || 'Anonymous',
+        timestamp: Date.now(),
         likes: 0,
         likedBy: []
       };
       
       // Add the comment
-      db.collection('agencies').doc(currentAgency.id).collection('comments').add(comment)
+      const newCommentRef = db.ref(`agencies/${currentAgency.id}/comments`).push();
+      
+      newCommentRef.set(comment)
         .then(() => {
           // Update agency rating
-          const agencyRef = db.collection('agencies').doc(currentAgency.id);
-          return db.runTransaction(transaction => {
-            return transaction.get(agencyRef).then(agencyDoc => {
-              const agency = agencyDoc.data();
-              const totalRating = agency.averageRating * agency.ratingCount + selectedRating;
-              const newRatingCount = agency.ratingCount + 1;
-              const newAverage = totalRating / newRatingCount;
-              
-              transaction.update(agencyRef, {
-                averageRating: newAverage,
-                ratingCount: newRatingCount
-              });
-            });
+          return db.ref(`agencies/${currentAgency.id}`).once('value');
+        })
+        .then(snapshot => {
+          const agency = snapshot.val();
+          const totalRating = (agency.averageRating || 0) * (agency.ratingCount || 0) + selectedRating;
+          const newRatingCount = (agency.ratingCount || 0) + 1;
+          const newAverage = totalRating / newRatingCount;
+          
+          return db.ref(`agencies/${currentAgency.id}`).update({
+            averageRating: newAverage,
+            ratingCount: newRatingCount
           });
         })
         .then(() => {
@@ -404,55 +499,54 @@ const firebaseConfig = {
           selectedRating = 0;
           userRating.querySelectorAll('.star').forEach(s => s.classList.remove('filled'));
           commentInput.value = '';
+          nicknameInput.value = '';
           
+          showSuccess('Rating submitted successfully!');
           loadComments(currentAgency.id);
           loadAgencies(); // Refresh the agency list to show updated rating
         })
         .catch(error => {
           console.error("Error adding comment: ", error);
-          alert('Failed to submit rating. Please try again.');
+          showError('Failed to submit rating. Please try again.');
         });
     });
     
     function likeComment(agencyId, commentId) {
-      if (!currentUser) {
-        alert('Please sign in to like comments.');
-        return;
-      }
+      const commentRef = db.ref(`agencies/${agencyId}/comments/${commentId}`);
       
-      const commentRef = db.collection('agencies').doc(agencyId).collection('comments').doc(commentId);
-      
-      db.runTransaction(transaction => {
-        return transaction.get(commentRef).then(commentDoc => {
-          if (!commentDoc.exists) {
-            throw "Comment does not exist!";
+      commentRef.once('value')
+        .then(snapshot => {
+          if (!snapshot.exists()) {
+            throw new Error("Comment does not exist!");
           }
           
-          const comment = commentDoc.data();
+          const comment = snapshot.val();
           const likedBy = comment.likedBy || [];
-          const currentUserIndex = likedBy.indexOf(currentUser.uid);
+          const currentUserIndex = likedBy.indexOf(clientId);
           
           if (currentUserIndex === -1) {
             // User hasn't liked this comment yet
-            likedBy.push(currentUser.uid);
-            transaction.update(commentRef, {
+            likedBy.push(clientId);
+            return commentRef.update({
               likes: (comment.likes || 0) + 1,
               likedBy: likedBy
             });
           } else {
             // User already liked this comment, so unlike it
             likedBy.splice(currentUserIndex, 1);
-            transaction.update(commentRef, {
+            return commentRef.update({
               likes: Math.max((comment.likes || 0) - 1, 0),
               likedBy: likedBy
             });
           }
+        })
+        .then(() => {
+          loadComments(agencyId);
+        })
+        .catch(error => {
+          console.error("Error updating like: ", error);
+          showError('Failed to update like. Please try again.');
         });
-      }).then(() => {
-        loadComments(agencyId);
-      }).catch(error => {
-        console.error("Error updating like: ", error);
-      });
     }
     
     // New Agency Functions
@@ -461,6 +555,7 @@ const firebaseConfig = {
       newAgencyForm.style.display = 'block';
       newAgencyName.value = '';
       newAgencyComment.value = '';
+      newAgencyNickname.value = '';
       newAgencySelectedRating = 0;
       newAgencyRating.querySelectorAll('.star').forEach(s => s.classList.remove('filled'));
     });
@@ -470,69 +565,104 @@ const firebaseConfig = {
     });
     
     submitNewAgency.addEventListener('click', () => {
-      if (!currentUser) {
-        alert('Please sign in to add an agency.');
-        return;
-      }
-      
       const name = newAgencyName.value.trim();
       if (!name) {
-        alert('Please enter an agency name.');
+        showError('Please enter an agency name.');
         return;
       }
       
       if (!newAgencySelectedRating) {
-        alert('Please select a rating.');
+        showError('Please select a rating.');
         return;
       }
       
       const comment = newAgencyComment.value.trim();
       if (!comment) {
-        alert('Please enter a comment.');
+        showError('Please enter a comment.');
         return;
       }
       
+      // Show loading indicator
+      submitNewAgency.disabled = true;
+      submitNewAgency.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...';
+      
       // Check if agency already exists
-      db.collection('agencies').where('nameLower', '==', name.toLowerCase()).get()
-        .then(snapshot => {
-          if (!snapshot.empty) {
-            alert('This agency already exists. Please search for it instead.');
-            return Promise.reject('Agency exists');
-          }
-          
-          // Add new agency
-          return db.collection('agencies').add({
-            name: name,
-            nameLower: name.toLowerCase(),
-            averageRating: newAgencySelectedRating,
-            ratingCount: 1,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            createdBy: currentUser.uid
-          });
-        })
-        .then(agencyRef => {
+      const nameLower = name.toLowerCase();
+      const existingAgency = agenciesCache.find(a => a.name.toLowerCase() === nameLower);
+      
+      if (existingAgency) {
+        showError('This agency already exists. Please search for it instead.');
+        submitNewAgency.disabled = false;
+        submitNewAgency.innerHTML = 'Add Agency';
+        return;
+      }
+      
+      // Create a safe key for the agency
+      const agencyKey = createSafeKey(name);
+      
+      // Add new agency
+      const newAgencyData = {
+        name: name,
+        averageRating: newAgencySelectedRating,
+        ratingCount: 1,
+        createdAt: Date.now()
+      };
+      
+      // Add the agency
+      db.ref(`agencies/${agencyKey}`).set(newAgencyData)
+        .then(() => {
           // Add initial comment
-          return db.collection('agencies').doc(agencyRef.id).collection('comments').add({
+          const comment = {
             rating: newAgencySelectedRating,
-            text: comment,
-            userId: currentUser.uid,
-            userEmail: currentUser.email,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            text: newAgencyComment.value.trim(),
+            nickname: newAgencyNickname.value.trim() || 'Anonymous',
+            timestamp: Date.now(),
             likes: 0,
             likedBy: []
-          }).then(() => agencyRef.id);
+          };
+          
+          return db.ref(`agencies/${agencyKey}/comments`).push().set(comment);
         })
-        .then(agencyId => {
+        .then(() => {
           newAgencyForm.style.display = 'none';
+          submitNewAgency.disabled = false;
+          submitNewAgency.innerHTML = 'Add Agency';
+          showSuccess('Agency added successfully!');
           loadAgencies();
-          loadAgencyDetails(agencyId);
+          loadAgencyDetails(agencyKey);
         })
         .catch(error => {
-          if (error === 'Agency exists') return;
           console.error("Error adding agency: ", error);
-          alert('Failed to add agency. Please try again.');
+          submitNewAgency.disabled = false;
+          submitNewAgency.innerHTML = 'Add Agency';
+          showError('Failed to add agency: ' + error.message);
         });
     });
+    
+    // Function to export data for Chrome extension
+    window.getAgencyData = function() {
+      return db.ref('agencies').once('value').then(snapshot => {
+        const agencies = [];
+        const data = snapshot.val() || {};
+        
+        for (const id in data) {
+          if (data.hasOwnProperty(id)) {
+            const agency = data[id];
+            agencies.push({
+              id: id,
+              name: agency.name,
+              rating: agency.averageRating || 0,
+              ratingCount: agency.ratingCount || 0
+            });
+          }
+        }
+        
+        return agencies;
+      });
+    };
+    
+    // Initialize the app
+    loadAgencies();
   </script>
 </body>
 </html>
